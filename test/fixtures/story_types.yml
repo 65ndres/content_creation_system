@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  story_prompt_text: MyText
+  scenes_json_prompts: MyText
+  output_width: 1
+  output_high: 1
+  image_width: 1
+  image_high: 1
+
+two:
+  name: MyString
+  story_prompt_text: MyText
+  scenes_json_prompts: MyText
+  output_width: 1
+  output_high: 1
+  image_width: 1
+  image_high: 1

@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  text: MyText
+  story_type: 1
+  source: one
+
+two:
+  text: MyText
+  story_type: 1
+  source: two

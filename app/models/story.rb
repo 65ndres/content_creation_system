@@ -3,25 +3,24 @@ class Story < ApplicationRecord
   belongs_to :story_type
   has_many :scenes
 
-  before_create :generate_story
-  require 'chatgpt/client'
-
+  before_create :generate_story_scenes_prompts_and_images
+  
+  def generate_story_scenes_prompts_and_images
+    generate_story
+    generate_scene_prompts
+  end
 
 
   def generate_story
-
-    client = ChatGPT::Client.new(api_key)
-    content = self.source.text + self.story_type.story_prompt_text
+    client   = ChatGptClient.new
     messages = [
       {
         role: "user",
-        content: content 
+        content: self.source.text + self.story_type.story_prompt_text 
       }
     ]
 
-    response = client.chat(messages)
-    self.text = response["choices"][0]["message"]["content"]
-
+    self.text = client.chat(messages) 
   end
 
 
@@ -194,10 +193,5 @@ class Story < ApplicationRecord
   end
 
 
-  def generate_scenes
-    if generate_scene_prompts && generate_scene_from_prompts
-      #create job to check for the status of the image
-    end
 
-  end
 end

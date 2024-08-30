@@ -1,18 +1,18 @@
 class Story < ApplicationRecord
   belongs_to :source
   belongs_to :story_type
-  has_many :scenes
+  has_many   :scenes
 
   before_create :generate_story_scenes_prompts_and_images
   
   def generate_story_scenes_prompts_and_images
     generate_story
-    generate_scene_prompts
+    # generate_scene_images_prompts
+    # generate_scene_images
   end
 
-
   def generate_story
-    client   = ChatGptClient.new
+    client   = ChatGPTClient
     messages = [
       {
         role: "user",
@@ -20,51 +20,54 @@ class Story < ApplicationRecord
       }
     ]
 
-    self.text = client.chat(messages) 
+    response  = client.chat(messages)
+    self.text = response["choices"][0]["message"]["content"]
   end
 
-
-  def generate_scene_prompts
-    client = ChatGPT::Client.new(api_key)
-    content = self.story_type.scenes_json_prompts + self.text
-
+  def generate_scene_images_prompts
+    client   = ChatGptClient.new
     messages = [
       {
         role: "user",
-        content: content 
+        content: self.story_type.scenes_json_prompts + self.text
       }
     ]
 
     response = client.chat(messages)
     response = JSON.parse(response["choices"][0]["message"]["content"])
-    #
+    
+    # Create Scenes and store response scenes  and image_ai_prompts
     response["pairs"].each do |obj|
       scene = Scene.new
-      scene.text = obj["original"]
+      scene.scene = obj["original"]
       scene.ai_image_prompt = obj["aiImagePrompts"]
       scene.save
     end
-
   end
 
-  def generate_scene_from_prompts
-    scene = Scene.last
-    story_type = scene.story.story_type
-    scene.ai_image_prompt.each_with_index do |prompt, i|
-      begin
-        payload = {}
-        payload["height"] = story_type.image_height
-        payload["modelId"] = "aa77f04e-3eec-4034-9c07-d0f619684628"
-        payload["width"] = story_type.image_width
-        payload["prompt"] = prompt
-        payload["public"] = false
-        payload["num_images"] = i + 1
-        # puts payload
-        response = send_to_leonardo(payload)
-        scene.leonardo_gen_ids << response["sdGenerationJob"]["generationId"]
-        scene.save # This feels dirty but It will do for now
-      rescue
-        puts "ERROR generation images from Leonardo. Fix me for a real logger pls"
+  def generate_scene_images
+    # current story #
+    # a Story has many Scenes and scenes with have has many images as ai_promopts
+    
+    # scene = Scene.last
+    self.scenes.each do |scene|
+      story_type = scene.story.story_type
+      scene.ai_image_prompt.each_with_index do |prompt, i|
+        begin
+          payload = {}
+          payload["height"] = story_type.image_height
+          payload["modelId"] = "aa77f04e-3eec-4034-9c07-d0f619684628"
+          payload["width"] = story_type.image_width
+          payload["prompt"] = prompt
+          payload["public"] = false
+          payload["num_images"] = i + 1
+          # puts payload
+          response = send_to_leonardo(payload)
+          scene.leonardo_gen_ids << response["sdGenerationJob"]["generationId"]
+          scene.save # This feels dirty but It will do for now
+        rescue
+          puts "ERROR generation images from Leonardo. Fix me for a real logger pls"
+        end
       end
     end
 

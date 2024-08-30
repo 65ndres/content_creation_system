@@ -1,3 +1,27 @@
+# default: &default
+#   adapter: postgresql
+#   encoding: unicode
+#   host: postgres
+#   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+# development:
+#   <<: *default
+#   database: reel_generator_development
+#   username: <%= ENV['POSTGRES_USER'] %>
+#   password: <%= ENV['POSTGRES_PASSWORD'] %>
+
+# test:
+#   <<: *default
+#   database: reel_generator_test
+
+# production:
+#   <<: *default
+#   database: reel_generator_production
+#   username: reel_generator
+#   password: <%= ENV["RAILS_7_WITH_DOCKER_DATABASE_PASSWORD"] %>
+
+
+
 
 default: &default
   adapter: postgresql
@@ -11,7 +35,8 @@ default: &default
 
 development:
   <<: *default
-  database: reel_generator_development
+  # database: reel_generator_development
+  database: <%= ENV['POSTGRES_DB'] %>
   username: <%= ENV['POSTGRES_USER'] %>
   password: <%= ENV['POSTGRES_PASSWORD'] %>
 

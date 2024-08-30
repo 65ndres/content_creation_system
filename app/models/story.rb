@@ -6,41 +6,44 @@ class Story < ApplicationRecord
   before_create :generate_story_scenes_prompts_and_images
   
   def generate_story_scenes_prompts_and_images
-    generate_story
+    GenerateStoryJob.perform_now(self)
+    GenerateImageCreationPromptJob.perform_now(self)
     # generate_scene_images_prompts
     # generate_scene_images
   end
 
   def generate_story
+    # return unless self.text.nil?
     client   = ChatGPTClient
     messages = [
       {
-        role: "user",
+        role:    "user",
         content: self.source.text + self.story_type.story_prompt_text 
       }
     ]
 
     response  = client.chat(messages)
     self.text = response["choices"][0]["message"]["content"]
+    self.save
   end
 
-  def generate_scene_images_prompts
-    client   = ChatGptClient.new
+  def generate_image_creation_prompts
+    client   = ChatGPTClient
     messages = [
       {
-        role: "user",
+        role:    "user",
         content: self.story_type.scenes_json_prompts + self.text
       }
     ]
 
     response = client.chat(messages)
-    response = JSON.parse(response["choices"][0]["message"]["content"])
-    
-    # Create Scenes and store response scenes  and image_ai_prompts
-    response["pairs"].each do |obj|
-      scene = Scene.new
-      scene.scene = obj["original"]
+    data     = response["choices"][0]["message"]["content"]
+
+    JSON.parse(data)["pairs"].each do |obj|
+      scene                 = Scene.new
+      scene.scene           = obj["original"]
       scene.ai_image_prompt = obj["aiImagePrompts"]
+      scene.story_id        = self.id
       scene.save
     end
   end

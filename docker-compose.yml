@@ -10,7 +10,8 @@ services:
     volumes:
       - .:/app  # Mount the current directory inside the container
     depends_on:
-      - db  # Specify dependency on the database service
+      - db
+      - cache
     environment:
       - RAILS_ENV=${RAILS_ENV}
       - POSTGRES_DB=${POSTGRES_DB}
@@ -31,7 +32,19 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     command: "postgres"
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes: 
+      - ./cache:/data
 
 # Define a volume for storing PostgreSQL data
 volumes:

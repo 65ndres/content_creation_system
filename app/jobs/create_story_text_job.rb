@@ -1,8 +1,8 @@
-class GenerateStoryJob < ApplicationJob
+class CreateStoryTextJob < ApplicationJob
   queue_as :default
 
   def perform(*args)
     story = args.first
-    story.generate_story
+    story.create_text
   end
 end

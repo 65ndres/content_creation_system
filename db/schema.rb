@@ -20,7 +20,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_08_29_084442) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "story_id"
-    t.jsonb "leonardo_gen_ids", default: "[]"
+    t.jsonb "leonardo_gen_ids", default: []
   end
 
   create_table "sources", force: :cascade do |t|

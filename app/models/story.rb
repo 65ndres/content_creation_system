@@ -20,9 +20,11 @@ class Story < ApplicationRecord
     JSON.parse(data)["pairs"].each do |obj|
       scene                 = Scene.new
       scene.story_id        = self.id
-      scene.scene           = obj["original"]
+      scene.text            = obj["original"]
       scene.ai_image_prompt = obj["aiImagePrompts"]
+      scene.images_total    = obj["aiImagePrompts"].count
       scene.save
     end
   end
+ 
 end

@@ -21,6 +21,7 @@ services:
       - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
       - CHATGPT_KEY=${CHATGPT_KEY}
       - LEONARDO_KEY=${LEONARDO_KEY}
+      - JSON2VIDEO_KEY=${JSON2VIDEO_KEY}
 
   # Service for the PostgreSQL database
   db:

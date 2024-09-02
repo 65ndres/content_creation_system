@@ -4,7 +4,14 @@ class Scene < ApplicationRecord
   after_create :create_images
 
   def create_images
-    # the jobs wait for the story
-    CreateSceneImagesJob.perform_now()
+    CreateSceneImagesJob.perform_now(self)
+  end
+
+  def create_video
+    CreateSceneVideoJob.perform_now()
+  end
+
+  def images_generation_completed?
+    self.images_total == self.images_data.count
   end
 end

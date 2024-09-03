@@ -5,6 +5,7 @@ class Json2videoClient
   MOVIES_ENDPOINT = "https://api.json2video.com/v2/movies"
 
   def self.create_scene_video(scene)
+    return if scene.video_url.present?
     payload           = {}
     story             = scene.story
     story_type        = story.story_type
@@ -15,14 +16,11 @@ class Json2videoClient
     payload["width"]  = story_type.output_width
     payload["height"] = story_type.output_height
     payload["scenes"] = create_scene_payload(scene, story_type)
-    puts "Thi sis where the payload is", payload
     project           = create_video(payload)
-    puts "Thi sis where the project", project
     scene.video_id    = project
-    # if scene.save
-    #   CheckSceneVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
-    # else
-    # end
+    if scene.save
+      CheckSceneVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
+    end
   end
 
   def self.create_scene_payload(scene, story_type)
@@ -70,6 +68,7 @@ class Json2videoClient
     --header 'Content-Type: application/json' \
     --data-raw '#{payload.to_json}'`
 
-    response["project"]
+    data     = JSON.parse(response)
+    data["project"]
   end
 end

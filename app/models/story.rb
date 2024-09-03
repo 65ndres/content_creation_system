@@ -26,5 +26,11 @@ class Story < ApplicationRecord
       scene.save
     end
   end
+
+  def scenes_video_generation_completed?
+    self.scenes.reduce(true) do |is_completed, scene| 
+      is_completed && scene.video_url.present?
+    end
+  end
  
 end

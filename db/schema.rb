@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_09_02_094257) do
+ActiveRecord::Schema[7.2].define(version: 2024_09_03_151525) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -23,6 +23,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_02_094257) do
     t.jsonb "leonardo_gen_ids", default: []
     t.jsonb "images_data", default: []
     t.integer "images_total", default: 0
+    t.string "video_id"
+    t.string "video_url"
   end
 
   create_table "sources", force: :cascade do |t|
@@ -39,6 +41,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_02_094257) do
     t.bigint "story_type_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "video_id"
+    t.string "video_url"
     t.index ["source_id"], name: "index_stories_on_source_id"
     t.index ["story_type_id"], name: "index_stories_on_story_type_id"
   end

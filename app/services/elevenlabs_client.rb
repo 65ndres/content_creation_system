@@ -6,23 +6,18 @@ class ElevenlabsClient
   def self.create_audio_file(scene)
 
     headers                 = {}
-    headers["Accept"]       = "audio/mpeg"
-    headers["Content-Type"] = "application/json"
-    headers["xi-api-key"]   = ENV["ELEVENLABS_KEY"]
+    headers[:"Accept"]       = "audio/mpeg"
+    headers[:"Content-Type"] = "application/json"
+    headers[:"xi-api-key"]   = ENV["ELEVENLABS_KEY"]
 
     data             = {}
-    data["text"]     = scene.text
-    data["model_id"] = MODEL_ID
+    data[:text]     = scene.text
+    data[:model_id] = MODEL_ID
 
     options            = {}
-    options["headers"] = headers
-    options["body"]    = data
+    options[:headers] = headers
+    options[:body]    = data.to_json
 
-    puts "This are the option #{options}"
-
-    res = HTTParty.post(ELELVEN_LABS, options)
-
-    # puts "This is the response #{res}"
 #     headers = {
 #   "Accept": "audio/mpeg",
 #   "Content-Type": "application/json",
@@ -45,10 +40,11 @@ class ElevenlabsClient
 #     body: data
 # }
 
+    puts "This are the option #{options}"
 
-# puts "This is the response #{res}"
-
-    file_name = "#{scene.text[0...30].gsub(" ", "").gsub(",", "").gsub(".", "") + rand(1..10).to_s}.mp3"
+    res       = HTTParty.post(ELELVEN_LABS, options)
+    # puts res
+    file_name = "story-#{scene.story_id}-scene-#{scene.id}-#{rand(10)}.mp3"
 
     File.open(file_name, "wb") do |f|
       f.write(res)
@@ -60,12 +56,7 @@ class ElevenlabsClient
         content_type: "audio/mpeg"
     )
 
-    # puts data
-
   end
-
-  # def create_audio_file(scene)
-  # end
 end
 
 

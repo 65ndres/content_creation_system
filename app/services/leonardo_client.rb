@@ -49,10 +49,8 @@ class LeonardoClient
       request                  = Net::HTTP::Get.new(url)
       request["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
       request["accept"]        = request["content-type"] = 'application/json'
-      puts " HERE check_scene_images_generation_status request: #{request}"
       response                 = http.request(request)
       data                     = JSON.parse(response.body)
-      puts " HERE check_scene_images_generation_status data: #{data}"
 
       if data["generations_by_pk"].present?
         url    = data["generations_by_pk"]["generated_images"][0]["url"]

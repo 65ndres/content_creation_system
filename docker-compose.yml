@@ -22,6 +22,9 @@ services:
       - CHATGPT_KEY=${CHATGPT_KEY}
       - LEONARDO_KEY=${LEONARDO_KEY}
       - JSON2VIDEO_KEY=${JSON2VIDEO_KEY}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_ACCESS_SECRET=${AWS_ACCESS_SECRET}
+      - ELEVENLABS_KEY=${ELEVENLABS_KEY}
 
   # Service for the PostgreSQL database
   db:

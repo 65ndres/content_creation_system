@@ -1,4 +1,5 @@
 class Scene < ApplicationRecord
+  has_one_attached :audio
   belongs_to :story
 
   after_create :create_images

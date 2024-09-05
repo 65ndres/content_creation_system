@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_09_04_101623) do
+ActiveRecord::Schema[7.2].define(version: 2024_09_05_165611) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -51,8 +51,10 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_04_101623) do
     t.jsonb "leonardo_gen_ids", default: []
     t.jsonb "images_data", default: []
     t.integer "images_total", default: 0
-    t.string "video_id"
+    t.string "video_gen_id"
     t.string "video_url"
+    t.string "merged_audio_video_url"
+    t.string "merged_audio_video_gen_id"
   end
 
   create_table "sources", force: :cascade do |t|

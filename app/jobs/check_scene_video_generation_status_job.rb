@@ -4,11 +4,12 @@ class CheckSceneVideoGenerationStatusJob < ApplicationJob
     def perform(*args)
       scene = args.first
       story = scene.story
-      Json2videoClient.check_video_generation_status(scene)
+      Json2videoClient.is_scene_video_ready(scene)
+
       if story.scenes_video_generation_completed?
-        puts "WOHOO all the scene videos have been created"
-        # call job for next task
-        # Job to generate audio files ( one per scene is my guess)
+        story.scenes.each_with_index do |scene, i|
+          CreateSceneAudioJob.set(wait: (1 + i).minutes).perform_later(scene)
+        end
       end
 
     end

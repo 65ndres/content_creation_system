@@ -5,9 +5,10 @@ class CreateSceneAudioJob < ApplicationJob
     scene = args.first
     ElevenlabsClient.create_audio_file(scene)
     if scene.story.scenes_audio_files_completed?
-      # Merge Audio  and Video
+      ## we gotta call something here
+      Json2videoClient.merge_audio_video(scene)
+      ### I hace somethinm to do there
     end
-    # Do something later
     
   end
 end

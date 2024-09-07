@@ -32,5 +32,17 @@ class Story < ApplicationRecord
       is_completed && scene.video_url.present?
     end
   end
+
+  def scenes_audio_video_merge_completed?
+    self.scenes.reduce(true) do |is_completed, scene|
+      is_completed && scene.merged_audio_video_url.present?
+    end
+  end
+
+  def scenes_audio_files_completed?
+    self.scenes.reduce(true) do |is_completed, scene|
+      is_completed && scene.audio.blob.present?
+    end
+  end
  
 end

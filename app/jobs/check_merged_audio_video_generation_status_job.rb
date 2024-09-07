@@ -1,12 +1,12 @@
 class CheckMergedAudioVideoGenerationStatusJob < ApplicationJob
-    queue_as :default
+  queue_as :default
 
-    def perform(*args)
-        scene = args.first
-        Json2videoClient.is_merged_audio_video_ready(scene)
-        # if 
-        # once done ask if al other scenes have it and fo
-        # Schedule the nex item
-        # add all video together and add captions
+  def perform(*args)
+    scene = args.first
+    story = scene.story
+    Json2videoClient.is_merged_audio_video_ready(scene)
+    if story.scenes_audio_video_merge_completed?
+      CreateStoryVideojob.perform_now(story) 
     end
+  end
 end

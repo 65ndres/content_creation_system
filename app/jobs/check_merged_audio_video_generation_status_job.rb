@@ -4,9 +4,10 @@ class CheckMergedAudioVideoGenerationStatusJob < ApplicationJob
   def perform(*args)
     scene = args.first
     story = scene.story
+    puts "######## CheckMergedAudioVideoGenerationStatusJob #{scene} ########"
     Json2videoClient.is_merged_audio_video_ready(scene)
     if story.scenes_audio_video_merge_completed?
-      CreateStoryVideojob.perform_now(story) 
+      CreateStoryVideoJob.perform_now(story) 
     end
   end
 end

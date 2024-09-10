@@ -16,10 +16,10 @@ user.save
 
 source = Source.new
 source.user_id = user.id
-source.text = "The FBI and Los Angeles Police Department are investigating one of the largest cash heists in the city’s history after as much as $30 million was stolen from a San Fernando Valley money storage facility, a law enforcement source briefed on the investigation told CNN Thursday.
+source.text = "The FBI and Los Angeles Police Department are investigating one of the largest cash heists in the city's history after as much as $30 million was stolen from a San Fernando Valley money storage facility, a law enforcement source briefed on the investigation told CNN Thursday.
 The burglary happened on the night of Easter Sunday at an unnamed facility in Sylmar, a suburban neighborhood in the San Fernando Valley, where cash from businesses across the region is handled and stored, the source said.
 The Los Angeles Times first reported the incident.
-The FBI Los Angeles office told CNN Thursday they are investigating “a large theft” in the San Fernando Valley and are working jointly with the LAPD, but would not share any other details citing an ongoing investigation. The LAPD referred all comment to the FBI.
+The FBI Los Angeles office told CNN Thursday they are investigating 'a large theft' in the San Fernando Valley and are working jointly with the LAPD, but would not share any other details citing an ongoing investigation. The LAPD referred all comment to the FBI.
 Burglars gained access to the building and entered the vault without setting off the alarms and investigators believe it is a sophisticated group based on their ability to evade detection, the source said. One area of focus for the investigation is whether the group had inside knowledge of the facility, said the source, who added that the heist was discovered on Monday.
 The facility was operated by private security firm GardaWorld, the source said. CNN has reached out to the company for comment on the incident.
 According to the Los Angeles Times, previously the largest cash heist in the city happened on September 12, 1997, when $18.9 million was stolen from the former site of the Dunbar Armored Inc. facility on Mateo Street. Those suspects were eventually caught"

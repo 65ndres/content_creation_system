@@ -3,6 +3,7 @@ class CreateStoryScenesJob < ApplicationJob
 
   def perform(*args)
     story = args.first
+    puts "######## Create Story Scene job #{story} ########"
     story.create_scenes
   end
 end

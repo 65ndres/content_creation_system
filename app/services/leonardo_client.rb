@@ -18,8 +18,6 @@ class LeonardoClient
         payload["modelId"]    = "aa77f04e-3eec-4034-9c07-d0f619684628"
         response              = generate_image(payload)
 
-        puts "RESponse here #{response}"
-
         scene.leonardo_gen_ids << response["sdGenerationJob"]["generationId"]
       rescue => e
         puts e
@@ -30,34 +28,26 @@ class LeonardoClient
 
 
     scene.save
-    # goota check of all worked if so the schedule the 
     if scene.leonardo_gen_ids.count == scene.ai_image_prompt.count
-      CheckSceneImagesGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
+      # wee nee to schedule not at the same time
+      CheckSceneImagesGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
     else
       puts "Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count"
-      #reschedule a retry of this function call 30 min
     end
   end
 
   def self.check_scene_images_generation_status(scene)
-    scene.leonardo_gen_ids.each do |gen_id|
 
-      url          = URI("#{GENERATION_ENDPOINT}/#{gen_id}")
-      http         = Net::HTTP.new(url.host, url.port)
-      http.use_ssl = true
-    
-      request                  = Net::HTTP::Get.new(url)
-      request["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
-      request["accept"]        = request["content-type"] = 'application/json'
-      response                 = http.request(request)
-      data                     = JSON.parse(response.body)
+    headers = { 'authorization' => "Bearer #{ENV['LEONARDO_KEY']}" }
+    scene.leonardo_gen_ids.each do |gen_id|
+      data = HTTParty.get("https://cloud.leonardo.ai/api/rest/v1/generations/#{gen_id}", headers: headers)
 
       if data["generations_by_pk"].present?
         url    = data["generations_by_pk"]["generated_images"][0]["url"]
         prompt = data["generations_by_pk"]["prompt"]
         scene.images_data << { url: url, prompt: prompt }
       else   
-        CheckSceneImagesGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
+        CheckSceneImagesGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
         break
       end
       scene.save
@@ -65,16 +55,21 @@ class LeonardoClient
   end
     
   def self.generate_image(payload)
-    url          = URI(GENERATION_ENDPOINT)
-    http         = Net::HTTP.new(url.host, url.port)
-    http.use_ssl = true
-  
-    request                  = Net::HTTP::Post.new(url)
-    request["accept"]        = request["content-type"] = 'application/json'
-    request["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
-    request.body             = payload.to_json
-    response                 = http.request(request)
-    JSON.parse(response.body)
+    headers                   = {}
+    headers["Accept"]        = "application/json"
+    headers["Content-Type"]  = "application/json"
+    headers["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
+
+    options             = {}
+    options[:"headers"] = headers
+    options[:"body"]    = payload.to_json
+
+    response = HTTParty.post(GENERATION_ENDPOINT, options)
+    response
   end
 
 end
+
+
+# CheckSceneImagesGenerationStatusJob
+# CreateSceneVideoJob

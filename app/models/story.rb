@@ -3,11 +3,11 @@ class Story < ApplicationRecord
   belongs_to :story_type
   has_many   :scenes
 
-  before_create :create_text_and_scenes
+  after_create :create_text_and_scenes
   
   def create_text_and_scenes
     CreateStoryTextJob.perform_now(self)
-    CreateStoryScenesJob.perform_now(self)
+    CreateStoryScenesJob.set(wait: 1.minute).perform_later(self)
   end
 
   def create_text
@@ -16,8 +16,9 @@ class Story < ApplicationRecord
   end
 
   def create_scenes
-    data = ChatGPTClient.generate_scene_images_prompts(self)
-    JSON.parse(data)["pairs"].each do |obj|
+    response = ChatGPTClient.generate_scene_images_prompts(self)
+    data     = JSON.parse(response.gsub("```json", "").gsub("```", ""))
+    data["pairs"].each do |obj|
       scene                 = Scene.new
       scene.story_id        = self.id
       scene.text            = obj["original"]
@@ -43,6 +44,10 @@ class Story < ApplicationRecord
     self.scenes.reduce(true) do |is_completed, scene|
       is_completed && scene.audio.blob.present?
     end
+  end
+
+  def video_completed?
+    self.video_url.present?
   end
  
 end

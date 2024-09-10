@@ -17,12 +17,14 @@ class Json2videoClient
     payload["scenes"]  = create_scene_video_payload(scene, story_type)
     project            = create_video(payload)
     scene.video_gen_id = project
+
     if scene.save
       CheckSceneVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
     end
   end
 
   def self.merge_audio_video(scene)
+    # return if scene.merged_audio_video_url.present?
     payload           = {}
     story             = scene.story
     story_type        = story.story_type
@@ -38,43 +40,48 @@ class Json2videoClient
     scene.merged_audio_video_gen_id  = project
 
     if scene.save
-      CheckMergedAudioVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
+      CheckMergedAudioVideoGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
     end
   end
 
   def self.create_story_video(story)
-    payload            = {}
-    story_type         = story.story_type
+    return if story.video_url.present?
+    payload             = {}
+    story_type          = story.story_type
   
-    payload["id"]      = "story-#{scene.story_id}-all-scenes"
-    payload["fps"]     = 25
-    payload["cache"]   = payload["draft"] = false
-    payload["width"]   = story_type.output_width
-    payload["height"]  = story_type.output_height
-    payload["scenes"]  = create_story_video_payload(story)
-    project            = create_video(payload)
-    story.video_gen_id = project
+    payload["id"]       = "story-#{story.id}-all-scenes"
+    payload["fps"]      = 25
+    payload["cache"]    = payload["draft"] = false
+    payload["width"]    = story_type.output_width
+    payload["height"]   = story_type.output_height
+    payload["scenes"]   = create_story_video_payload(story)
+    payload["elements"] = [story_video_captions_payload]
+    project             = create_video(payload)
+    story.video_gen_id  = project
 
     if story.save
-      CheckStoryVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
+      CheckStoryVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(story)
     end
   end
 
   def self.create_story_video_payload(story)
-    result     = []
+    result = []
     story_type = story.story_type
     story.scenes.each do |scene|
-      result_obj              = element_obj = {}
-      result_obj["elements"]  = []
-      element_obj["src"]      = scene.merged_audio_video_url
-      element_obj["type"]     = "video"
-      element_obj["zoom"]     = 0
-      element_obj["width"]    = story_type.output_width
-      element_obj["height"]   = story_type.output_height
-      element_obj["duration"] = -1
-      element_obj["position"] = "center-center"
-      result_obj["elements"]  << element_obj
-      result << result_obj
+
+      element_obj                  = {}
+      element_obj["elements"]      = []
+      element_obj_value            = {}
+
+      element_obj_value["src"]      = scene.merged_audio_video_url
+      element_obj_value["type"]     = "video"
+      element_obj_value["zoom"]     = 0
+      element_obj_value["width"]    = story_type.output_width
+      element_obj_value["height"]   = story_type.output_height
+      element_obj_value["duration"] = -1
+      element_obj_value["position"] = "center-center"
+      element_obj["elements"] << element_obj_value
+      result << element_obj
     end
     result
   end
@@ -82,23 +89,25 @@ class Json2videoClient
   def self.create_scene_video_payload(scene, story_type)
     result = []
     scene.images_data.each do |image|
-      result_obj              = element_obj = {}
-      result_obj["elements"]  = []
-      element_obj["src"]      = image["url"]
-      element_obj["type"]     = "image"
-      element_obj["zoom"]     = 2
-      element_obj["width"]    = story_type.output_width
-      element_obj["height"]   = story_type.output_height
-      element_obj["duration"] = 5
-      element_obj["position"] = "center-center"
-      result_obj["elements"]  << element_obj
-      result << result_obj
+      element_obj                  = {}
+      element_obj["elements"]      = []
+      element_obj_value            = {}
+
+      element_obj_value["src"]      = image["url"]
+      element_obj_value["type"]     = "image"
+      element_obj_value["zoom"]     = 2
+      element_obj_value["width"]    = story_type.output_width
+      element_obj_value["height"]   = story_type.output_height
+      element_obj_value["duration"] = 5
+      element_obj_value["position"] = "center-center"
+      element_obj["elements"] << element_obj_value
+      result << element_obj
     end
     result
   end
 
   def self.video_generation_status(id)
-    response = `curl --location --request GET '#{MOVIES_ENDPOINT}?id=#{id}' \
+    response = `curl --location --request GET 'https://api.json2video.com/v2/movies?id=#{id}' \
     --header 'X-api-key: #{ENV["JSON2VIDEO_KEY"]}' \
     --header 'Content-Type: application/json'`
     data     = JSON.parse(response)
@@ -106,9 +115,9 @@ class Json2videoClient
   end
 
   def self.create_video(payload)
-    response = `curl --location --request POST '#{MOVIES_ENDPOINT}' \
-    --header 'x-api-key: #{ENV["JSON2VIDEO_KEY"]}' \
-    --header 'Content-Type: application/json' \
+    response = `curl --location --request POST 'https://api.json2video.com/v2/movies' \
+    --header "x-api-key: #{ENV['JSON2VIDEO_KEY']}" \
+    --header "Content-Type: application/json" \
     --data-raw '#{payload.to_json}'`
     data     = JSON.parse(response)
     data["project"]
@@ -179,5 +188,27 @@ class Json2videoClient
       puts "Soemthing when wrong with the call, Fix me for a real logger pls"
     end
   end
+
+
+  def self.story_video_captions_payload
+    {
+      "id": "qzbft9yb",
+      "type": "subtitles",
+      "settings": {
+        "position": "mid-bottom-center",
+        "font-family": "Luckiest Guy",
+        "font-size": 75,
+        "outline-width": 5
+      }
+    }
+  end
+
+
+
+
+
+
+
+
 end
 

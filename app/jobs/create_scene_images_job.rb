@@ -3,6 +3,7 @@ class CreateSceneImagesJob < ApplicationJob
 
   def perform(*args)
     scene = args.first
+    puts "######## CreateSceneImagesJob #{scene} ########"
     LeonardoClient.generate_scene_images(scene)
   end
 end

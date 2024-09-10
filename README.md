@@ -1,17 +1,5 @@
 # DONT README
 
-
-1. Create Story
-2. Create Scenes
-3. Create images for Scenes
-3. Create Video from images for Scenes
-4. Create Audio File per scene
-5. Merge Audio File and Video
-6. Merge all the merged audio and video files, plus add subtitles
-
-
-
-
 1. Story is created
     1.1 ChatGPT for story text
     1.2 ChatGPT for Scene description and therefore Scene creation
@@ -27,7 +15,7 @@
                     had their video generation completed to trigger the audio generation.
     2.3 Create audio file 
         2.3.1 Scene text is sent to ElevenLabs
-        2.3.2 File is generated intantly store locally and right after upload it the S3
+        2.3.2 File is generated intantly and stored locally and right after upload it the S3
         2.3.3 Each time the job is completed it will check whether all the other scenes
               had their audio generation completed to trigger video and audio merge
     2.4 Merge video and audio

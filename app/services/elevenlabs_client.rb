@@ -4,7 +4,7 @@ class ElevenlabsClient
   MODEL_ID     = "eleven_monolingual_v1"
 
   def self.create_audio_file(scene)
-
+    return if scene.audio.blob.present?
     headers                  = {}
     headers[:"Accept"]       = "audio/mpeg"
     headers[:"Content-Type"] = "application/json"

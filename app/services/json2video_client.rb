@@ -24,7 +24,7 @@ class Json2videoClient
   end
 
   def self.merge_audio_video(scene)
-    # return if scene.merged_audio_video_url.present?
+    return if scene.merged_audio_video_url.present?
     payload           = {}
     story             = scene.story
     story_type        = story.story_type
@@ -106,23 +106,6 @@ class Json2videoClient
     result
   end
 
-  def self.video_generation_status(id)
-    response = `curl --location --request GET 'https://api.json2video.com/v2/movies?id=#{id}' \
-    --header 'X-api-key: #{ENV["JSON2VIDEO_KEY"]}' \
-    --header 'Content-Type: application/json'`
-    data     = JSON.parse(response)
-    data
-  end
-
-  def self.create_video(payload)
-    response = `curl --location --request POST 'https://api.json2video.com/v2/movies' \
-    --header "x-api-key: #{ENV['JSON2VIDEO_KEY']}" \
-    --header "Content-Type: application/json" \
-    --data-raw '#{payload.to_json}'`
-    data     = JSON.parse(response)
-    data["project"]
-  end
-
   def self.merge_audio_video_payload(scene)
     result_obj              = {}
     result_obj["elements"]  = []
@@ -139,6 +122,19 @@ class Json2videoClient
     audio_element_obj["duration"] = -1
     result_obj["elements"]        << audio_element_obj
     [result_obj]
+  end
+
+  def self.story_video_captions_payload
+    {
+      "id": "qzbft9yb",
+      "type": "subtitles",
+      "settings": {
+        "position": "mid-bottom-center",
+        "font-family": "Luckiest Guy",
+        "font-size": 75,
+        "outline-width": 5
+      }
+    }
   end
 
   def self.is_scene_video_ready(scene)
@@ -189,25 +185,22 @@ class Json2videoClient
     end
   end
 
-
-  def self.story_video_captions_payload
-    {
-      "id": "qzbft9yb",
-      "type": "subtitles",
-      "settings": {
-        "position": "mid-bottom-center",
-        "font-family": "Luckiest Guy",
-        "font-size": 75,
-        "outline-width": 5
-      }
-    }
+  def self.video_generation_status(id)
+    response = `curl --location --request GET 'https://api.json2video.com/v2/movies?id=#{id}' \
+    --header 'X-api-key: #{ENV["JSON2VIDEO_KEY"]}' \
+    --header 'Content-Type: application/json'`
+    data     = JSON.parse(response)
+    data
   end
 
-
-
-
-
-
+  def self.create_video(payload)
+    response = `curl --location --request POST 'https://api.json2video.com/v2/movies' \
+    --header "x-api-key: #{ENV['JSON2VIDEO_KEY']}" \
+    --header "Content-Type: application/json" \
+    --data-raw '#{payload.to_json}'`
+    data     = JSON.parse(response)
+    data["project"]
+  end
 
 
 end

@@ -11,14 +11,6 @@ class CheckSceneVideoGenerationStatusJob < ApplicationJob
         MergeAudioVideoJob.set(wait: 1.minutes).perform_later(scene)
       end
 
-      
-
-      # if story.scenes_video_generation_completed?
-      #   story.scenes.each_with_index do |scene, i|
-      #     CreateSceneAudioJob.set(wait: (1 + i).minutes).perform_later(scene)
-      #   end
-      # end
-
     end
   end
   

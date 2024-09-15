@@ -204,39 +204,3 @@ class Json2videoClient
 
 
 end
-
-# create video from images
-  # with ruby gem
-      # slideshow_transcoder = FFMPEG::Transcoder.new(
-    #   '',
-    #   'slideshow.mp4',
-    #   { resolution: "320x240" },
-    #   input: 'img_%03d.jpeg',
-    #   input_options: { framerate: '1/5' }
-    # )
-
-    # slideshow = slideshow_transcoder.run
-
-
-    # ffmpeg -framerate 24 -i img%03d.png output.mp4
-
-  # https://trac.ffmpeg.org/wiki/Slideshow#Concatdemuxer
-
-# merge video with audio
-
-  # with ruby gem
-
-  # ffmpeg \
-  # -i video1.mp4 -i audio1.mp3 \
-  # -c:v copy \
-  # -map 0:v -map 1:a \
-  # -y output.mp4 
-
-# add sub titles ?
-
-
-  # ffmpeg \
-  # -i video1.mp4 -i audio1.mp3 \
-  # -c:v copy \
-  # -map 0:v -map 1:a \
-  # -y output.mp4 

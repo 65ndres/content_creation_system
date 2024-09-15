@@ -6,6 +6,7 @@ class Scene < ApplicationRecord
 
   def create_images
     CreateSceneImagesJob.perform_now(self)
+    CreateSceneAudioJob.perform_now(self)
   end
 
   def create_video

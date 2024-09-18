@@ -18,7 +18,7 @@ RUN bundle install
 # Copy the rest of the application code
 COPY . .
 
-RUN chmod u+x app/services/json2video_client.rb
+# RUN chmod u+x app/services/json2video_client.rb
 
 # Expose port 3000 to the outside world
 EXPOSE 3000

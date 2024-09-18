@@ -54,3 +54,9 @@ services:
 # Define a volume for storing PostgreSQL data
 volumes:
   postgres_data:
+
+
+networks:
+  default:
+    external:
+      name: video_editor_default

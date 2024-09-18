@@ -5,7 +5,7 @@ class CheckSceneVideoGenerationStatusJob < ApplicationJob
       scene = args.first
       story = scene.story
       puts "######## CheckSceneVideoGenerationStatusJob #{scene} ########"
-      Json2videoClient.is_scene_video_ready(scene)
+      VideoEditorClient.is_scene_video_ready(scene)
 
       if scene.video_url.present? && scene.audio.present?
         MergeAudioVideoJob.set(wait: 1.minutes).perform_later(scene)

@@ -4,6 +4,6 @@ class MergeAudioVideoJob < ApplicationJob
     def perform(*args)
       scene = args.first
       puts "######## CreateStoryVideoJob #{scene} ########"
-      Json2videoClient.merge_audio_video(scene)
+      VideoEditorClient.merge_audio_video(scene)
     end
   end

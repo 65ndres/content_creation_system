@@ -3,6 +3,6 @@ class CreateStoryVideoJob < ApplicationJob
 
   def perform(*args)
     story = args.first
-    Json2videoClient.create_story_video(story)
+    VideoEditorClient.create_story_video(story)
   end
 end

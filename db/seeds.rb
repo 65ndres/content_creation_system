@@ -54,3 +54,18 @@ story_type.output_height = 1080
 story_type.output_width  = 1920
 story_type.save
 
+
+
+# Second story
+
+"Recent archaeological discoveries in Nevada have reignited interest in a long-held legend of red-haired giants who once roamed the Americas, according to The Independent.
+The story began in 1911, when miners digging for fertiliser in Lovelock Cave unearthed unusual artifacts. This led to official excavations in 1912 and 1924, uncovering thousands of artefacts and the remains of individuals nicknamed the 'Lovelock Giants'. These mummies measured an astonishing 8 to 10 feet tall, according to the news outlet.
+
+Archaeologists also found a 15-inch-long sandal showing signs of wear, and a boulder with a seemingly giant handprint etched onto it. A 1931 local newspaper article reported the discovery of two more giant skeletons, around 8.5 and 10 feet tall, in a nearby dry lake bed. These remains were even described as being mummified in a similar way to those of the Ancient Egyptians.
+
+Intriguingly, the Paiute tribe inhabiting the region for millennia possesses a legend of cannibalistic red-haired giants called the Si-Te-Cah. These giants, according to the legend, arrived by sea and dominated the area due to their superior size and strength.
+further supporting the legend, a 16th-century Spanish conquistador documented an ancient Peruvian tale about giants who crossed the ocean on large reed rafts. He described them as being so tall that their legs from the knee down were as long as an average man's entire body.
+
+Elongated skulls, possibly 3,000 years old and much larger than normal human skulls, have also been found high in the Andes mountains. Some of these skulls are reported to have had red hair, although some scientists attribute this coloration to the burial environment
+The story doesn't end there. The Paiute legend continues with the tribes uniting to defeat the Si-Te-Cah after years of war. The last remaining giants were supposedly chased into Lovelock Cave, where they were trapped and ultimately burned alive by a fire set at the entrance. Interestingly, archaeologists did find evidence of significant burning near the cave's entrance during the initial excavations.
+While the existence of 10-foot giants remains unconfirmed, these discoveries and their connection to local legends offer a fascinating glimpse into the past and the power of storytelling across generations."

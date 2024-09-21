@@ -25,6 +25,7 @@ services:
       - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
       - AWS_ACCESS_SECRET=${AWS_ACCESS_SECRET}
       - ELEVENLABS_KEY=${ELEVENLABS_KEY}
+      - VIDEO_EDITOR_LOCAL_IP=${VIDEO_EDITOR_LOCAL_IP}
     networks:
       - some-net
 
@@ -64,3 +65,7 @@ volumes:
 networks:
   some-net:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.138.0/24

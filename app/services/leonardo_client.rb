@@ -17,6 +17,7 @@ class LeonardoClient
         payload["height"]     = story_type.image_height
         payload["modelId"]    = "aa77f04e-3eec-4034-9c07-d0f619684628"
         response              = generate_image(payload)
+        puts "THis is the response #{response}"
 
         scene.leonardo_gen_ids << response["sdGenerationJob"]["generationId"]
       rescue => e
@@ -55,17 +56,21 @@ class LeonardoClient
   end
     
   def self.generate_image(payload)
-    headers                   = {}
-    headers["Accept"]        = "application/json"
-    headers["Content-Type"]  = "application/json"
-    headers["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
+    begin
+      headers                   = {}
+      headers["Accept"]        = "application/json"
+      headers["Content-Type"]  = "application/json"
+      headers["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
 
-    options             = {}
-    options[:"headers"] = headers
-    options[:"body"]    = payload.to_json
+      options             = {}
+      options[:"headers"] = headers
+      options[:"body"]    = payload.to_json
 
-    response = HTTParty.post(GENERATION_ENDPOINT, options)
-    response
+      response = HTTParty.post(GENERATION_ENDPOINT, options)
+      response
+    rescue
+      puts "Error in gereate_image, response #{response}"
+    end
   end
 
 end

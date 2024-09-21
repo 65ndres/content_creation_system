@@ -5,13 +5,10 @@ class Scene < ApplicationRecord
   after_create :create_images
 
   def create_images
-    CreateSceneImagesJob.perform_now(self)
+    CreateSceneImagesJob.set(wait: rand(5..15).round(2).seconds).perform_later(self)
     CreateSceneAudioJob.perform_now(self)
   end
 
-  # def create_video
-  #   CreateSceneVideoJob.perform_now()
-  # end
 
   def images_generation_completed?
     self.images_total == self.images_data.count

@@ -80,7 +80,7 @@ class VideoEditorClient
   def self.create_scene_video_payload(scene)
     payload                = {}
     payload["images_urls"] = []
-    payload["audio_url"]   = scene.audio.blob.url(expires_in: 5000) 
+    payload["audio_url"]   = scene.audio.blob.url(expires_in: 6000) 
     payload["scene_id"]    = scene.id
     payload["story_id"]    = scene.story.id
     scene.images_data.each do |id|

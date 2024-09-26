@@ -83,6 +83,7 @@ class VideoEditorClient
     payload["audio_url"]   = scene.audio.blob.url(expires_in: 6000) 
     payload["scene_id"]    = scene.id
     payload["story_id"]    = scene.story.id
+    payload["scene_text"]  = scene.text
     scene.images_data.each do |id|
       payload["images_urls"] << id["url"]
     end
@@ -92,7 +93,6 @@ class VideoEditorClient
   def self.is_scene_video_ready(scene)
     gen_id = scene.video_gen_id
     data   = generation_status(gen_id)
-    puts data
     if data["completed"] == true
       scene.video_url = data["file_path"]
       scene.save

@@ -9,8 +9,15 @@ class Scene < ApplicationRecord
     CreateSceneAudioJob.perform_now(self)
   end
 
-
   def images_generation_completed?
-    self.images_total == self.images_data.count
+    self.images_data.reduce(true) do |is_completed, image_data|
+      is_completed && image_data["static_url"].present?
+    end
+  end
+
+  def motion_images_generation_completed?
+    self.images_data.reduce(true) do |is_completed, image_data|
+      is_completed && image_data["motion_url"].present?
+    end
   end
 end

@@ -6,7 +6,8 @@ class CheckSceneImagesGenerationStatusJob < ApplicationJob
     puts "######## CheckSceneImagesGenerationStatusJob #{scene} ########"
     LeonardoClient.check_scene_images_generation_status(scene)
     if scene.images_generation_completed?
-      CreateSceneVideoJob.perform_now(scene)
+      # CreateSceneVideoJob.perform_now(scene)
+      CreateSceneImagesMotionJob.perform_now(scene)
     end
   end
 end

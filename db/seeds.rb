@@ -75,9 +75,9 @@ While the existence of 10-foot giants remains unconfirmed, these discoveries and
 conspiracy_story_type = StoryType.new
 conspiracy_story_type.name = "Dark Fact"
 conspiracy_story_type.story_prompt_text = "Read the story above.
-You're a mystery story teller. Let's create a 200 word factual review of the story where you will
-explain with detail the timeline of the story, you will explain the why, what, when and where.
-To finalize ask the reader to take action by subscribing to the channel and to leave a comment saying whether they still view our government the same."
+You're a mystery story teller. Let's create a 70 word factual review of the story where you will
+explain the timeline of the story.
+to finalize ask the reader to take action by subscribing to the channel and to leave a comment saying whether they still view our government the same."
 
 conspiracy_story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a dark, obscure comic book illustration.The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story, the prompts must never be too graphic or generate realistic images.
 Format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of three strings. Each string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
@@ -90,10 +90,10 @@ Guidelines for the prompts:
 The aim is to receive creative, engaging prompts that will inspire detailed and lively illustrations, encapsulating the essence of the story through the lens of comic book art.
 Here's the story I want to use:"
 
-conspiracy_story_type.image_height  = 576
-conspiracy_story_type.image_width   = 1024
-conspiracy_story_type.output_height = 1080
-conspiracy_story_type.output_width  = 1920
+conspiracy_story_type.image_height  = 1024
+conspiracy_story_type.image_width   = 576
+conspiracy_story_type.output_height = 1920
+conspiracy_story_type.output_width  = 1080 
 
 conspiracy_story_type.save
 

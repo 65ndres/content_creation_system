@@ -33,12 +33,12 @@ class LeonardoClient
     end
 
     scene.save
-    if scene.images_data.count == scene.ai_image_prompt.count
+    # if scene.images_data.count == scene.ai_image_prompt.count
       # wee nee to schedule not at the same time
-      CheckSceneImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
-    else
-      puts "Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count"
-    end
+    CheckSceneImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+    # else
+    #   puts "Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count"
+    # end
   end
 
   def self.check_asset_generation_status(gen_id)

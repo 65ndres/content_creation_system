@@ -85,7 +85,7 @@ class VideoEditorClient
     payload["story_id"]    = scene.story.id
     payload["scene_text"]  = scene.text
     scene.images_data.each do |image_data|
-      payload["images_urls"] << image_data["motion_url"]
+      payload["images_urls"] << image_data["static_url"]
     end
     payload
   end

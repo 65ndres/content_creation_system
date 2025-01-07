@@ -18,6 +18,7 @@ class Story < ApplicationRecord
   def create_scenes
     response = ChatGPTClient.generate_scene_images_prompts(self)
     data     = JSON.parse(response.gsub("```json", "").gsub("```", ""))
+    # scene    = nil
     data["pairs"].each do |obj|
       scene                 = Scene.new
       scene.story_id        = self.id
@@ -26,6 +27,9 @@ class Story < ApplicationRecord
       scene.images_total    = obj["aiImagePrompts"].count
       scene.save
     end
+    # scene.text += "Dont forget to like and subscribe to see more videos like this one."
+    # scene.save
+    # maybe here add the recomnedation to the last scene
   end
 
   def scenes_video_generation_completed?

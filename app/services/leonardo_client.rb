@@ -3,8 +3,11 @@ require 'net/http'
 
 class LeonardoClient
 
-  GENERATION_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v1/generations"
-  MOTION_ENDPOINT     = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
+  GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
+  MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
+  VIDEO_GENERATION_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v2/generations"
+  KLING_VIDEO_MODEL         = "kling-video-o-1"
+  DEFAULT_KLING_DURATION    = 5
 
   def self.generate_scene_images(scene)
     story_type = scene.story.story_type
@@ -80,6 +83,30 @@ class LeonardoClient
     end
     scene.save
   end
+
+  def self.check_leonardo_scene_video_generation_status(scene)
+    gen_id = scene.leonardo_video_gen_id
+    return if gen_id.blank?
+
+    data = check_asset_generation_status(gen_id)
+    pk   = data["generations_by_pk"]
+    status = pk&.dig("status")
+
+    if status == "FAILED"
+      puts "Leonardo video generation failed for scene #{scene.id}"
+      return
+    end
+
+    if pk.blank? || status != "COMPLETE"
+      CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+      return
+    end
+
+    first_image = pk["generated_images"]&.first
+    video_url   = first_image&.dig("motionMP4URL") || first_image&.dig("url")
+    scene.leonardo_scene_video_url = video_url if video_url.present?
+    scene.save
+  end
     
   def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)
     begin
@@ -97,6 +124,38 @@ class LeonardoClient
     rescue
       puts "Error in gereate_image, response #{response}"
     end
+  end
+
+  def self.generate_video(body_hash)
+    begin
+      headers                  = {}
+      headers["Accept"]        = "application/json"
+      headers["Content-Type"]  = "application/json"
+      headers["authorization"] = "Bearer #{ENV['LEONARDO_KEY']}"
+
+      options             = {}
+      options[:"headers"] = headers
+      options[:"body"]   = body_hash.to_json
+
+      HTTParty.post(VIDEO_GENERATION_ENDPOINT, options)
+    rescue => e
+      puts "Error in generate_video: #{e.message}"
+    end
+  end
+
+  def self.generate_scene_video(scene)
+    story_type = scene.story.story_type
+    payload    = {
+      "model"   => KLING_VIDEO_MODEL,
+      "public"  => false,
+      "parameters" => {
+        "prompt"   => scene.text.to_s,
+        "duration" => DEFAULT_KLING_DURATION,
+        "width"    => story_type.image_width,
+        "height"   => story_type.image_height
+      }
+    }
+    generate_video(payload)
   end
 
   def self.create_scene_motion_images(scene)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_09_07_052825) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_09_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -42,6 +42,50 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_07_052825) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "cars2", id: false, force: :cascade do |t|
+    t.string "brand", limit: 255
+    t.string "model", limit: 255
+    t.string "year", limit: 4
+  end
+
+  create_table "categories", primary_key: "category_id", id: :serial, force: :cascade do |t|
+    t.string "category_name", limit: 255
+    t.string "description", limit: 255
+  end
+
+  create_table "customers", primary_key: "customer_id", id: :serial, force: :cascade do |t|
+    t.string "customer_name", limit: 255
+    t.string "contact_name", limit: 255
+    t.string "address", limit: 255
+    t.string "city", limit: 255
+    t.string "postal_code", limit: 255
+    t.string "country", limit: 255
+  end
+
+  create_table "motos", id: false, force: :cascade do |t|
+    t.string "brand", limit: 255
+    t.string "model", limit: 255
+    t.integer "year"
+  end
+
+  create_table "order_details", primary_key: "order_detail_id", id: :serial, force: :cascade do |t|
+    t.integer "order_id"
+    t.integer "product_id"
+    t.integer "quantity"
+  end
+
+  create_table "orders", primary_key: "order_id", id: :serial, force: :cascade do |t|
+    t.integer "customer_id"
+    t.date "order_date"
+  end
+
+  create_table "products", primary_key: "product_id", id: :serial, force: :cascade do |t|
+    t.string "product_name", limit: 255
+    t.integer "category_id"
+    t.string "unit", limit: 255
+    t.decimal "price", precision: 10, scale: 2
+  end
+
   create_table "scenes", force: :cascade do |t|
     t.text "text"
     t.jsonb "ai_image_prompt"
@@ -55,6 +99,7 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_07_052825) do
     t.string "video_url"
     t.string "merged_audio_video_url"
     t.string "merged_audio_video_gen_id"
+    t.string "leonardo_video_gen_id"
   end
 
   create_table "sources", force: :cascade do |t|
@@ -87,6 +132,11 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_07_052825) do
     t.integer "image_height", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "testproducts", primary_key: "testproduct_id", id: :serial, force: :cascade do |t|
+    t.string "product_name", limit: 255
+    t.integer "category_id"
   end
 
   create_table "users", force: :cascade do |t|

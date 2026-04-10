@@ -1,8 +1,8 @@
 # DONT README
 
 1. Story is created
-    1.1 ChatGPT for story text
-    1.2 ChatGPT for Scene description and therefore Scene creation
+    1.1 xAI (Responses API) for story text — set `XAI_API_KEY`, optional `XAI_MODEL` (default `grok-4.20-reasoning`)
+    1.2 xAI for scene JSON / image prompts and therefore Scene creation
 2. Scenes are created
     2.1 Call Leonardo to create images
         2.1.1 Leonardo will return a generation id for per image (leonardo_gen_ids)

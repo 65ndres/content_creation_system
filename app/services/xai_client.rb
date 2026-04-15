@@ -6,6 +6,8 @@ class XaiClient
   DEFAULT_MODEL = "grok-4.20-reasoning"
   POLL_INTERVAL = 1.5
   MAX_POLL_ATTEMPTS = 120
+  DEFAULT_HTTP_OPEN_TIMEOUT = 30
+  DEFAULT_HTTP_READ_TIMEOUT = 600
 
   class Error < StandardError; end
 
@@ -27,7 +29,8 @@ class XaiClient
     response = HTTParty.post(
       "#{BASE_URL}#{RESPONSES_PATH}",
       headers: request_headers,
-      body: body.to_json
+      body: body.to_json,
+      **http_options
     )
     handle_http_errors(response)
     parsed = normalize_parsed(response)
@@ -54,6 +57,33 @@ class XaiClient
       key
     end
 
+    def http_options
+      {
+        open_timeout: http_open_timeout,
+        read_timeout: http_read_timeout
+      }
+    end
+
+    def http_open_timeout
+      v = ENV["XAI_HTTP_OPEN_TIMEOUT"].to_i
+      v.positive? ? v : DEFAULT_HTTP_OPEN_TIMEOUT
+    end
+
+    def http_read_timeout
+      v = ENV["XAI_HTTP_READ_TIMEOUT"].to_i
+      v.positive? ? v : DEFAULT_HTTP_READ_TIMEOUT
+    end
+
+    def max_poll_attempts
+      v = ENV["XAI_MAX_POLL_ATTEMPTS"].to_i
+      v.positive? ? v : MAX_POLL_ATTEMPTS
+    end
+
+    def poll_interval_seconds
+      v = ENV["XAI_POLL_INTERVAL_SECONDS"].to_f
+      v.positive? ? v : POLL_INTERVAL
+    end
+
     def normalize_parsed(response)
       parsed = response.parsed_response
       return parsed if parsed.is_a?(Hash)
@@ -71,8 +101,8 @@ class XaiClient
       status = parsed["status"]
 
       attempt = 0
-      while status == "in_progress" && attempt < MAX_POLL_ATTEMPTS
-        sleep POLL_INTERVAL
+      while status == "in_progress" && attempt < max_poll_attempts
+        sleep poll_interval_seconds
         attempt += 1
         parsed = fetch_response(id)
         status = parsed["status"]
@@ -88,7 +118,8 @@ class XaiClient
     def fetch_response(id)
       get_resp = HTTParty.get(
         "#{BASE_URL}#{RESPONSES_PATH}/#{id}",
-        headers: request_headers
+        headers: request_headers,
+        **http_options
       )
       handle_http_errors(get_resp)
       parsed = normalize_parsed(get_resp)

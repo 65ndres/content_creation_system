@@ -1,3 +1,5 @@
+require "stringio"
+
 class ElevenlabsClient
 
   ELELVEN_LABS = "https://api.elevenlabs.io/v1/text-to-speech/TX3LPaxmHKxFdv7VOQHJ/stream"
@@ -21,15 +23,10 @@ class ElevenlabsClient
     res       = HTTParty.post(ELELVEN_LABS, options)
     file_name = "story-#{scene.story_id}-scene-#{scene.id}-#{rand(10)}.mp3"
 
-    File.open(file_name, "wb") do |f|
-      f.write(res)
-    end
-
-    data = scene.audio.attach(
-        io:           File.open("/app/#{file_name}"), 
-        filename:     file_name, 
-        content_type: "audio/mpeg"
+    scene.audio.attach(
+      io:           StringIO.new(res.body),
+      filename:     file_name,
+      content_type: "audio/mpeg"
     )
-
   end
 end

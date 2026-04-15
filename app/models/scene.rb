@@ -2,10 +2,11 @@ class Scene < ApplicationRecord
   has_one_attached :audio
   belongs_to :story
 
-  after_create :create_images
+  # after_create :create_images
 
   def create_images
-    CreateSceneImagesJob.set(wait: rand(5..15).round(2).seconds).perform_later(self)
+    # CreateSceneImagesJob.set(wait: rand(5..15).round(2).seconds).perform_later(self)
+    LeonardoClient.generate_scene_video(self) # this shuld be a job
     CreateSceneAudioJob.perform_now(self)
   end
 

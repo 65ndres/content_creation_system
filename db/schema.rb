@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_09_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_15_030726) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -100,6 +100,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_120000) do
     t.string "merged_audio_video_url"
     t.string "merged_audio_video_gen_id"
     t.string "leonardo_video_gen_id"
+    t.string "leonardo_video_url"
   end
 
   create_table "sources", force: :cascade do |t|

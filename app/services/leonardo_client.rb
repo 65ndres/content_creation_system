@@ -6,7 +6,8 @@ class LeonardoClient
   GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
   MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
   VIDEO_GENERATION_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v2/generations"
-  KLING_VIDEO_MODEL         = "kling-video-o-1"
+  # See https://docs.leonardo.ai/docs/generate-with-kling-2-6 — model slug and allowed resolutions are strict.
+  KLING_VIDEO_MODEL         = "kling-2.6"
   DEFAULT_KLING_DURATION    = 5
 
   def self.generate_scene_images(scene)
@@ -85,6 +86,7 @@ class LeonardoClient
   end
 
   def self.check_leonardo_scene_video_generation_status(scene)
+    # binding.irb
     gen_id = scene.leonardo_video_gen_id
     return if gen_id.blank?
 
@@ -104,7 +106,7 @@ class LeonardoClient
 
     first_image = pk["generated_images"]&.first
     video_url   = first_image&.dig("motionMP4URL") || first_image&.dig("url")
-    scene.leonardo_scene_video_url = video_url if video_url.present?
+    scene.leonardo_video_url = video_url if video_url.present?
     scene.save
   end
     
@@ -145,17 +147,41 @@ class LeonardoClient
 
   def self.generate_scene_video(scene)
     story_type = scene.story.story_type
+    video_w, video_h = kling_video_dimensions(story_type.image_width, story_type.image_height)
     payload    = {
       "model"   => KLING_VIDEO_MODEL,
       "public"  => false,
       "parameters" => {
         "prompt"   => scene.text.to_s,
         "duration" => DEFAULT_KLING_DURATION,
-        "width"    => story_type.image_width,
-        "height"   => story_type.image_height
+        "width"    => video_w,
+        "height"   => video_h
       }
     }
-    generate_video(payload)
+    response = generate_video(payload)
+    if response["generate"]
+      scene.leonardo_video_gen_id = response["generate"]["generationId"]
+      scene.save
+      CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+    else
+      puts "Error in generate_scene_video: #{response}"
+    end
+  end
+
+  # Kling only accepts 1920x1080, 1440x1440, or 1080x1920 — image generation sizes (e.g. 1024x576) are rejected.
+  def self.kling_video_dimensions(image_width, image_height)
+    w = image_width.to_i
+    h = image_height.to_i
+    return [1920, 1080] if w <= 0 || h <= 0
+
+    ratio = w.to_f / h
+    if ratio >= 1.34
+      [1920, 1080]
+    elsif ratio <= 0.75
+      [1080, 1920]
+    else
+      [1440, 1440]
+    end
   end
 
   def self.create_scene_motion_images(scene)

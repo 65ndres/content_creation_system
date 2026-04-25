@@ -6,9 +6,9 @@ class LeonardoClient
   GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
   MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
   VIDEO_GENERATION_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v2/generations"
-  # See https://docs.leonardo.ai/docs/generate-with-kling-2-6 — model slug and allowed resolutions are strict.
-  KLING_VIDEO_MODEL         = "kling-2.6"
-  DEFAULT_KLING_DURATION    = 5
+  # See https://docs.leonardo.ai/docs/hailuo-23 — model slug, mode, duration, and width/height are strict.
+  HAILUO_VIDEO_MODEL      = "hailuo-2_3"
+  DEFAULT_HAILUO_DURATION = 6 # 1080p allows 6s only; 768p allows 6 or 10
 
   def self.generate_scene_images(scene)
     story_type = scene.story.story_type
@@ -147,15 +147,16 @@ class LeonardoClient
 
   def self.generate_scene_video(scene)
     story_type = scene.story.story_type
-    video_w, video_h = kling_video_dimensions(story_type.image_width, story_type.image_height)
+    video_w, video_h, mode = hailuo_video_dimensions(story_type.image_width, story_type.image_height)
     payload    = {
-      "model"   => KLING_VIDEO_MODEL,
+      "model"   => HAILUO_VIDEO_MODEL,
       "public"  => false,
       "parameters" => {
-        "prompt"   => scene.text.to_s,
-        "duration" => DEFAULT_KLING_DURATION,
-        "width"    => video_w,
-        "height"   => video_h
+        "prompt"    => scene.text.to_s,
+        "mode"      => mode,
+        "duration"  => DEFAULT_HAILUO_DURATION,
+        "width"     => video_w,
+        "height"    => video_h
       }
     }
     response = generate_video(payload)
@@ -168,19 +169,20 @@ class LeonardoClient
     end
   end
 
-  # Kling only accepts 1920x1080, 1440x1440, or 1080x1920 — image generation sizes (e.g. 1024x576) are rejected.
-  def self.kling_video_dimensions(image_width, image_height)
+  # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
+  # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.
+  def self.hailuo_video_dimensions(image_width, image_height)
     w = image_width.to_i
     h = image_height.to_i
-    return [1920, 1080] if w <= 0 || h <= 0
+    return [1920, 1080, "RESOLUTION_1080"] if w <= 0 || h <= 0
 
     ratio = w.to_f / h
     if ratio >= 1.34
-      [1920, 1080]
+      [1920, 1080, "RESOLUTION_1080"]      # 16:9
     elsif ratio <= 0.75
-      [1080, 1920]
+      [1080, 1920, "RESOLUTION_1080"]      # 9:16
     else
-      [1440, 1440]
+      [1080, 1080, "RESOLUTION_1080"]      # 1:1
     end
   end
 

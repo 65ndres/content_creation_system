@@ -11,14 +11,12 @@ class Story < ApplicationRecord
   end
 
   def create_text
-    # self.text = ChatGPTClient.generate_story_text(self)
-    self.text = XaiClient.generate_story_text(self)
+    self.text = ChatGPTClient.generate_story_text(self)
     self.save
   end
 
   def create_scenes
-    # response = ChatGPTClient.generate_scene_images_prompts(self)
-    response = XaiClient.generate_scene_images_prompts(self)
+    response = ChatGPTClient.generate_scene_images_prompts(self)
     data     = JSON.parse(response.gsub("```json", "").gsub("```", ""))
     # scene    = nil
     data["pairs"].each do |obj|

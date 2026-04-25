@@ -108,6 +108,8 @@ class LeonardoClient
     video_url   = first_image&.dig("motionMP4URL") || first_image&.dig("url")
     scene.leonardo_video_url = video_url if video_url.present?
     scene.save
+
+    # should we somehwere in here check if the all the videos are ready ?
   end
     
   def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)

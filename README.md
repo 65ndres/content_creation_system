@@ -1,31 +1,19 @@
-# DONT README
+Ensure redis is running
 
-1. Story is created
-    1.1 xAI (Responses API) for story text — set `XAI_API_KEY`, optional `XAI_MODEL` (default `grok-4.20-reasoning`)
-    1.2 xAI for scene JSON / image prompts and therefore Scene creation
-2. Scenes are created
-    2.1 Call Leonardo to create images
-        2.1.1 Leonardo will return a generation id for per image (leonardo_gen_ids)
-        2.1.2 A Job will be scheduled to check for the images generation status (images_data)
-    2.2 Create Scene video from images
-        2.2.1 Scenes images are sent to JSON2VIDEO
-        2.2.2 JSON2VIDEO will return a gen_id which will trigger a polling job
-        2.2.3 Polling job will keep checking and save the data in :video_gen_id
-            2.2.3.1 Each time the job is completed it will check whether all the other scenes
-                    had their video generation completed to trigger the audio generation.
-    2.3 Create audio file 
-        2.3.1 Scene text is sent to ElevenLabs
-        2.3.2 File is generated intantly and stored locally and right after upload it the S3
-        2.3.3 Each time the job is completed it will check whether all the other scenes
-              had their audio generation completed to trigger video and audio merge
-    2.4 Merge video and audio
-        2.4.1 Video and Audio file are sent to JSON2Video
-        2.4.2 JSON2VIDEO will return a gen_id which will trigger a polling job
-        2.4.3 Polling job will keep checking and save the data in :merged_audio_video_gen_id
-            2.4.3.1 Each time the job is completed it will check whether all the other scenes had their audio and video merge completed to trigger the story video creation.
-    2.5 Create Story video file
-        2.5.1 Collection of all merged audio and video files will be send to JSON2VIDEO
-              along withe the caption settings
-        2.4.2 JSON2VIDEO will return a gen_id which will trigger a polling job
-        2.4.3 Polling job will keep checking and save the data in :video_url
+1. Create a Source and a story type
+2. With the source and story type created above I need to create a new instance of a Story
+    story = Story.new(source_id: Source.last.id, story_type: StoryType.last)
 
+    1. Story has a call back after_create :create_text_and_scenes
+        ChatGPTClient.generate_story_text gets called to generate the summirzed version of the story where
+            I get to decide the length of it.
+        ChatGPTClient.generate_scene_images_prompts also gets called to create the prompts and the correct format
+            that will be sent to Leonardo. This last step creates a Scene which has its own call back.
+
+    2. When a scene gets created from the step above :create_video_and_audio gets call
+        LeonardoClient.generate_scene_video(scene) gets called. Leonardo API will give me gen_id that I will use  in a different job to poll until the video is ready. When is ready the video url will be saved on leonardo_video_url.
+        ELevenLabs.create_audio_file also gets called to generate the Audio. This is an attachemnt that will be saved in S3.
+
+    3. When the video and the audio per scene have been completed I will call VideoEditorClient.merge_audio_video
+    to merge the records. This will also called CheckMergedAudioVideoGenerationStatusJob which by checking
+    if story.scenes_audio_video_merge_completed? will merge all the videos together

@@ -2,31 +2,31 @@ require 'httparty'
 
 class VideoEditorClient
 
-  VIDEO_ENDPOINT = "http://#{ENV['VIDEO_EDITOR_LOCAL_IP']}:3001/reel_generator/videos"
+  VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
 
-  def self.create_scene_video(scene)
-    payload = create_scene_video_payload(scene)
+  # def self.create_scene_video(scene)
+  #   payload = create_scene_video_payload(scene)
   
-    headers                  = {}
-    options                  = {}
-    headers[:"Content-Type"] = "application/json"
-    options[:headers]        = headers
-    options[:body]           = payload.to_json
+  #   headers                  = {}
+  #   options                  = {}
+  #   headers[:"Content-Type"] = "application/json"
+  #   options[:headers]        = headers
+  #   options[:body]           = payload.to_json
 
-    response = HTTParty.post(VIDEO_ENDPOINT + "/generate_scene_video", options)
+  #   response = HTTParty.post(VIDEO_ENDPOINT + "/generate_scene_video", options)
 
-    puts "This is ther response #{response}"
+  #   puts "This is ther response #{response}"
 
-    scene.video_gen_id = response["body"]["gen_id"]
+  #   scene.video_gen_id = response["body"]["gen_id"]
 
-    if scene.save
-      CheckSceneVideoGenerationStatusJob.set(wait: 2.minutes).perform_later(scene)
-    end
+  #   if scene.save
+  #     CheckSceneVideoGenerationStatusJob.set(wait: 2.minutes).perform_later(scene)
+  #   end
 
-  end
+  # end
 
   def self.merge_audio_video(scene)
-    return if !scene.video_url.present?
+    return if !scene.leonardo_video_url.present?
     payload = merge_audio_video_payload(scene)
 
     headers                  = {}
@@ -71,25 +71,13 @@ class VideoEditorClient
 
   def self.merge_audio_video_payload(scene)
     payload                = {}
-    payload["video_path"]  = scene.video_url
-    payload["scene_id"]    = scene.id
-    payload["story_id"]    = scene.story_id
+    payload["video_url"]  = scene.leonardo_video_url
+    payload["audio_url"]  = scene.audio.url
+    payload["scene_id"]   = scene.id
+    payload["story_id"]   = scene.story_id
     payload
   end
-
-  def self.create_scene_video_payload(scene)
-    payload                = {}
-    payload["images_urls"] = []
-    payload["audio_url"]   = scene.audio.blob.url(expires_in: 6000) 
-    payload["scene_id"]    = scene.id
-    payload["story_id"]    = scene.story.id
-    payload["scene_text"]  = scene.text
-    scene.images_data.each do |image_data|
-      payload["images_urls"] << image_data["static_url"]
-    end
-    payload
-  end
-
+  
   def self.is_scene_video_ready(scene)
     gen_id = scene.video_gen_id
     data   = generation_status(gen_id)
@@ -127,7 +115,7 @@ class VideoEditorClient
   end
 
   def self.generation_status(gen_id)
-    response = HTTParty.get("http://#{ENV['VIDEO_EDITOR_LOCAL_IP']}:3001/videos/generation_status" + "/#{gen_id}")
+    response = HTTParty.get("http://localhost:3003/videos/generation_status" + "/#{gen_id}")
     response["body"]
   end
 

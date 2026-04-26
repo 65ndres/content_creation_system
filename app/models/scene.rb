@@ -13,7 +13,7 @@ class Scene < ApplicationRecord
   def leonardo_scene_video_generation_completed?
     # self.leonardo_video_gen_id.present?
     story.scenes.reduce(true) do |is_completed, scene|
-      is_completed && scene.video_url.present?
+      is_completed && scene.leonardo_video_url.present?
     end
   end
 

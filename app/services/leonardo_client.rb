@@ -154,7 +154,7 @@ class LeonardoClient
       "model"   => HAILUO_VIDEO_MODEL,
       "public"  => false,
       "parameters" => {
-        "prompt"    => scene.text.to_s,
+        "prompt"    => build_scene_video_prompt(scene),
         "mode"      => mode,
         "duration"  => DEFAULT_HAILUO_DURATION,
         "width"     => video_w,
@@ -170,6 +170,28 @@ class LeonardoClient
       puts "Error in generate_scene_video: #{response}"
     end
   end
+
+  def self.build_scene_video_prompt(scene)
+    base_prompt = scene.ai_image_prompt.first
+    characters  = scene.story.characters
+    return base_prompt if characters.blank?
+
+    character_lines = characters.map do |character|
+      name = character['name'] || character[:name]
+      description = character['physical_description'] || character[:physical_description]
+      "- #{name}: #{description}"
+    end
+
+    <<~PROMPT.strip
+      #{base_prompt}
+
+      Character reference — use these exact physical descriptions for any character visible in this scene:
+      #{character_lines.join("\n")}
+
+      Ensure each character in the video matches their physical description above.
+    PROMPT
+  end
+  private_class_method :build_scene_video_prompt
 
   # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
   # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.

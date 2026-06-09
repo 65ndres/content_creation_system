@@ -10,12 +10,40 @@ class ChatGPTClient
     responses_request(input)
   end
 
+  CHARACTERS_EXTRACTION_PROMPT = <<~PROMPT.squish
+    Based on the story below, list every character (named or clearly recurring unnamed roles).
+    For each character, provide a very detailed, fixed physical description suitable for consistent
+    AI image and video generation. Include age or age range, build, face, hair, skin tone where
+    relevant, typical clothing, and distinguishing features.
+    Return ONLY valid JSON with no markdown fences or commentary. Use this structure:
+    { "characters": [ { "name": "Character Name", "physical_description": "Very detailed description..." } ] }
+    Story:
+  PROMPT
+
+  def self.generate_story_characters(story)
+    input = CHARACTERS_EXTRACTION_PROMPT + ' ' + story.text.to_s
+    responses_request(input)
+  end
+
   def self.generate_scene_images_prompts(story)
     input = story.story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s
+    input += character_reference_block(story) if story.characters.present?
     text  = responses_request(input)
     puts "response, this is the response #{text}"
     text
   end
+
+  def self.character_reference_block(story)
+    lines = story.characters.map do |character|
+      name = character['name'] || character[:name]
+      description = character['physical_description'] || character[:physical_description]
+      "- #{name}: #{description}"
+    end
+
+    "\n\nCharacter reference (use these exact physical descriptions whenever a character appears in a prompt):\n" +
+      lines.join("\n")
+  end
+  private_class_method :character_reference_block
 
   def self.responses_request(input)
     api_key = ENV['OPENAI_API_KEY'].presence || ENV['CHATGPT_KEY']

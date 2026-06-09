@@ -13,12 +13,25 @@ class Story < ApplicationRecord
   def create_text
     self.text = ChatGPTClient.generate_story_text(self)
     self.save
+    create_characters
+  end
+
+  def create_characters
+    response = ChatGPTClient.generate_story_characters(self)
+    data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
+    self.characters = data.fetch("characters", [])
+    self.save
+  rescue JSON::ParserError, StandardError => e
+    puts "Error extracting characters for story #{id}: #{e.message}"
+    self.characters = []
+    self.save
   end
 
   def create_scenes
+    puts "Creating scenes for story #{self.id}"
     response = ChatGPTClient.generate_scene_images_prompts(self)
     data     = JSON.parse(response.gsub("```json", "").gsub("```", ""))
-    # scene    = nil
+
     data["pairs"].each do |obj|
       scene                 = Scene.new
       scene.story_id        = self.id

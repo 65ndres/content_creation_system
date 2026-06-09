@@ -13,8 +13,10 @@ class ChatGPTClient
   CHARACTERS_EXTRACTION_PROMPT = <<~PROMPT.squish
     Based on the story below, list every character (named or clearly recurring unnamed roles).
     For each character, provide a very detailed, fixed physical description suitable for consistent
-    AI image and video generation. Include age or age range, build, face, hair, skin tone where
+    AI image and video generation. alwys include age or age range, build, face, hair type, hair color, skin tone where
     relevant, typical clothing, and distinguishing features.
+    Do not add special characters, keep it simple and clean.
+  
     Return ONLY valid JSON with no markdown fences or commentary. Use this structure:
     { "characters": [ { "name": "Character Name", "physical_description": "Very detailed description..." } ] }
     Story:
@@ -34,10 +36,8 @@ class ChatGPTClient
   end
 
   def self.character_reference_block(story)
-    lines = story.characters.map do |character|
-      name = character['name'] || character[:name]
-      description = character['physical_description'] || character[:physical_description]
-      "- #{name}: #{description}"
+    lines = StoryJsonNormalizer.normalize_characters(story.characters).map do |character|
+      "- #{character['name']}: #{character['physical_description']}"
     end
 
     "\n\nCharacter reference (use these exact physical descriptions whenever a character appears in a prompt):\n" +

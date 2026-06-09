@@ -19,7 +19,7 @@ class Story < ApplicationRecord
   def create_characters
     response = ChatGPTClient.generate_story_characters(self)
     data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
-    self.characters = data.fetch("characters", [])
+    self.characters = StoryJsonNormalizer.normalize_characters(data.fetch("characters", []))
     self.save
   rescue JSON::ParserError, StandardError => e
     puts "Error extracting characters for story #{id}: #{e.message}"
@@ -30,19 +30,18 @@ class Story < ApplicationRecord
   def create_scenes
     puts "Creating scenes for story #{self.id}"
     response = ChatGPTClient.generate_scene_images_prompts(self)
-    data     = JSON.parse(response.gsub("```json", "").gsub("```", ""))
-
-    data["pairs"].each do |obj|
+    data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
+    StoryJsonNormalizer.normalize_pairs(data).each do |obj|
+      prompts               = StoryJsonNormalizer.normalize_ai_image_prompts(obj["aiImagePrompts"])
       scene                 = Scene.new
       scene.story_id        = self.id
       scene.text            = obj["original"]
-      scene.ai_image_prompt = obj["aiImagePrompts"]
-      scene.images_total    = obj["aiImagePrompts"].count
+      scene.ai_image_prompt = prompts
+      scene.images_total    = prompts.size
       scene.save
     end
-    # scene.text += "Dont forget to like and subscribe to see more videos like this one."
-    # scene.save
-    # maybe here add the recomnedation to the last scene
+  rescue JSON::ParserError, StandardError => e
+    puts "Error creating scenes for story #{id}: #{e.message}"
   end
 
   def scenes_video_generation_completed?

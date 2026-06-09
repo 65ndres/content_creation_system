@@ -12,7 +12,7 @@ class LeonardoClient
 
   def self.generate_scene_images(scene)
     story_type = scene.story.story_type
-    scene.ai_image_prompt.each_with_index do |prompt, i|
+    StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each_with_index do |prompt, i|
       begin
         payload               = {}
         payload["num_images"] = i + 1
@@ -172,14 +172,12 @@ class LeonardoClient
   end
 
   def self.build_scene_video_prompt(scene)
-    base_prompt = scene.ai_image_prompt.first
-    characters  = scene.story.characters
+    base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first
+    characters  = StoryJsonNormalizer.normalize_characters(scene.story.characters)
     return base_prompt if characters.blank?
 
     character_lines = characters.map do |character|
-      name = character['name'] || character[:name]
-      description = character['physical_description'] || character[:physical_description]
-      "- #{name}: #{description}"
+      "- #{character['name']}: #{character['physical_description']}"
     end
 
     <<~PROMPT.strip

@@ -9,6 +9,7 @@ class LeonardoClient
   # See https://docs.leonardo.ai/docs/hailuo-23 — model slug, mode, duration, and width/height are strict.
   HAILUO_VIDEO_MODEL      = "hailuo-2_3"
   DEFAULT_HAILUO_DURATION = 6 # 1080p allows 6s only; 768p allows 6 or 10
+  MAX_HAILUO_PROMPT_LENGTH = 1500
 
   def self.generate_scene_images(scene)
     story_type = scene.story.story_type
@@ -172,24 +173,50 @@ class LeonardoClient
   end
 
   def self.build_scene_video_prompt(scene)
-    base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first
-    characters  = StoryJsonNormalizer.normalize_characters(scene.story.characters)
-    return base_prompt if characters.blank?
+    base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first.to_s
+    characters  = StoryJsonNormalizer.filter_characters_in_text(
+      scene.story.characters,
+      base_prompt,
+      scene.text
+    )
+    characters = characters.reject { |character| description_embedded_in_prompt?(base_prompt, character["physical_description"]) }
 
-    character_lines = characters.map do |character|
-      "- #{character['name']}: #{character['physical_description']}"
+    prompt = if characters.blank?
+      base_prompt
+    else
+      character_lines = characters.map do |character|
+        "- #{character['name']}: #{character['physical_description']}"
+      end
+
+      <<~PROMPT.strip
+        #{base_prompt}
+
+        Character reference — use these exact physical descriptions for any character visible in this scene:
+        #{character_lines.join("\n")}
+
+        Ensure each character in the video matches their physical description above.
+      PROMPT
     end
 
-    <<~PROMPT.strip
-      #{base_prompt}
-
-      Character reference — use these exact physical descriptions for any character visible in this scene:
-      #{character_lines.join("\n")}
-
-      Ensure each character in the video matches their physical description above.
-    PROMPT
+    truncate_hailuo_prompt(prompt)
   end
   private_class_method :build_scene_video_prompt
+
+  def self.description_embedded_in_prompt?(base_prompt, description)
+    snippet = description.to_s.strip.slice(0, 80)
+    return false if snippet.length < 40
+
+    base_prompt.downcase.include?(snippet.downcase)
+  end
+  private_class_method :description_embedded_in_prompt?
+
+  def self.truncate_hailuo_prompt(prompt)
+    return prompt if prompt.length <= MAX_HAILUO_PROMPT_LENGTH
+
+    truncated = prompt.slice(0, MAX_HAILUO_PROMPT_LENGTH)
+    truncated.sub(/\s+\S*\z/, "").strip
+  end
+  private_class_method :truncate_hailuo_prompt
 
   # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
   # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.

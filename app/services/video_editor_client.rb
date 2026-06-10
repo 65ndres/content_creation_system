@@ -4,29 +4,17 @@ class VideoEditorClient
 
   VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
 
-  # def self.create_scene_video(scene)
-  #   payload = create_scene_video_payload(scene)
-  
-  #   headers                  = {}
-  #   options                  = {}
-  #   headers[:"Content-Type"] = "application/json"
-  #   options[:headers]        = headers
-  #   options[:body]           = payload.to_json
-
-  #   response = HTTParty.post(VIDEO_ENDPOINT + "/generate_scene_video", options)
-
-  #   puts "This is ther response #{response}"
-
-  #   scene.video_gen_id = response["body"]["gen_id"]
-
-  #   if scene.save
-  #     CheckSceneVideoGenerationStatusJob.set(wait: 2.minutes).perform_later(scene)
-  #   end
-
-  # end
-
   def self.merge_audio_video(scene)
-    return if !scene.leonardo_video_url.present?
+    unless scene.leonardo_video_url.present?
+      Rails.logger.warn("merge_audio_video skipped scene=#{scene.id}: missing leonardo_video_url")
+      return
+    end
+
+    unless scene.audio.attached?
+      Rails.logger.warn("merge_audio_video skipped scene=#{scene.id}: audio not attached")
+      return
+    end
+
     payload = merge_audio_video_payload(scene)
 
     headers                  = {}
@@ -36,14 +24,21 @@ class VideoEditorClient
     options[:body]           = payload.to_json
 
     response = HTTParty.post(VIDEO_ENDPOINT + "/merge_audio_video", options)
+    gen_id   = response_body(response)&.dig("gen_id")
 
-    scene.merged_audio_video_gen_id = response["body"]["gen_id"]
+    unless response.success? && gen_id.present?
+      Rails.logger.error(
+        "merge_audio_video failed scene=#{scene.id} status=#{response.code} body=#{response.body}"
+      )
+      return
+    end
+
+    scene.merged_audio_video_gen_id = gen_id
 
     if scene.save
       CheckMergedAudioVideoGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
     end
   end
-
 
   def self.create_story_video(story)
     payload = create_story_video_payload(story)
@@ -77,7 +72,7 @@ class VideoEditorClient
     payload["story_id"]   = scene.story_id
     payload
   end
-  
+
   def self.is_scene_video_ready(scene)
     gen_id = scene.video_gen_id
     data   = generation_status(gen_id)
@@ -90,10 +85,15 @@ class VideoEditorClient
   end
 
   def self.is_merged_audio_video_ready(scene)
-    gen_id   = scene.merged_audio_video_gen_id
-    data     = generation_status(gen_id)
+    gen_id = scene.merged_audio_video_gen_id
+    if gen_id.blank?
+      Rails.logger.warn("is_merged_audio_video_ready skipped scene=#{scene.id}: missing merged_audio_video_gen_id")
+      return
+    end
 
-    puts "data #{data}"
+    data = generation_status(gen_id)
+    Rails.logger.info("is_merged_audio_video_ready scene=#{scene.id} data=#{data.inspect}")
+
     if data["completed"] == true
       scene.merged_audio_video_url = data["file_path"]
       scene.save
@@ -115,9 +115,19 @@ class VideoEditorClient
   end
 
   def self.generation_status(gen_id)
-    response = HTTParty.get("http://localhost:3003/videos/generation_status" + "/#{gen_id}")
-    response["body"]
+    return {} if gen_id.blank?
+
+    response = HTTParty.get("http://localhost:3003/videos/generation_status/#{gen_id}")
+    response_body(response) || {}
   end
 
+  def self.response_body(response)
+    parsed = response.parsed_response
+    return parsed["body"] if parsed.is_a?(Hash) && parsed.key?("body")
+    return parsed[:body] if parsed.is_a?(Hash) && parsed.key?(:body)
+
+    response["body"]
+  end
+  private_class_method :response_body
 
 end

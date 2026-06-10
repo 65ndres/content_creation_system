@@ -31,6 +31,45 @@ class StoryJsonNormalizer
     end
   end
 
+  def self.filter_characters_in_text(characters, *texts)
+    haystack = texts.flatten.compact.join(" ")
+    return [] if haystack.blank?
+
+    normalize_characters(characters).select do |character|
+      character_name_mentioned?(character["name"], haystack)
+    end
+  end
+
+  def self.character_name_mentioned?(name, haystack)
+    return false if name.blank?
+
+    normalized_haystack = haystack.to_s
+    return true if word_boundary_match?(normalized_haystack, name)
+
+    token = primary_match_token(name)
+    token.present? && word_boundary_match?(normalized_haystack, token)
+  end
+  private_class_method :character_name_mentioned?
+
+  def self.primary_match_token(name)
+    stripped = name.to_s.sub(/\A(?:unnamed|unknown)\s+/i, "")
+    tokens = stripped.split(/\s+/).reject { |token| token.match?(/\A(?:the|a|an|at)\z/i) }
+    significant = tokens.select { |token| token.gsub(/[^a-z0-9]/i, "").length >= 4 }
+    return nil if significant.empty?
+
+    return significant.first if name.match?(/\A(?:unnamed|unknown)\s+/i)
+    return significant.last if significant.size > 1
+
+    significant.first
+  end
+  private_class_method :primary_match_token
+
+  def self.word_boundary_match?(haystack, term)
+    pattern = Regexp.new("\\b#{Regexp.escape(term.to_s)}\\b", Regexp::IGNORECASE)
+    haystack.match?(pattern)
+  end
+  private_class_method :word_boundary_match?
+
   def self.normalize_character_entry(item, index)
     case item
     when Hash

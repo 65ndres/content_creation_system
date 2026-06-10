@@ -4,7 +4,7 @@ class CreateSceneAudioJob < ApplicationJob
   def perform(*args)
     scene = args.first
     story = scene.story
-    puts "######## CreateSceneAudioJob #{scene} ########"
+    Rails.logger.info("CreateSceneAudioJob scene=#{scene.id}")
     ElevenlabsClient.create_audio_file(scene)
     
   end

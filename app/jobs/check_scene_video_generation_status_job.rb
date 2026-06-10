@@ -4,10 +4,10 @@ class CheckSceneVideoGenerationStatusJob < ApplicationJob
     def perform(*args)
       scene = args.first
       story = scene.story
-      puts "######## CheckSceneVideoGenerationStatusJob #{scene} ########"
+    Rails.logger.info("CheckSceneVideoGenerationStatusJob scene=#{scene.id}")
       VideoEditorClient.is_scene_video_ready(scene)
 
-      if scene.video_url.present? && scene.audio.present?
+      if scene.leonardo_video_url.present? && scene.audio.attached?
         MergeAudioVideoJob.set(wait: 1.minutes).perform_later(scene)
       end
 

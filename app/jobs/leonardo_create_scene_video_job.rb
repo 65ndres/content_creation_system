@@ -3,7 +3,7 @@ class LeonardoCreateSceneVideoJob < ApplicationJob
 
   def perform(*args)
     scene = args.first
-    puts "######## CreateSceneVideoJob #{scene} ########"
+    Rails.logger.info("LeonardoCreateSceneVideoJob scene=#{scene.id}")
     LeonardoClient.generate_scene_video(scene)
   end
 end

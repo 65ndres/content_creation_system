@@ -3,7 +3,7 @@ class CreateStoryTextJob < ApplicationJob
 
   def perform(*args)
     story = args.first
-    puts "######## Create Story Text Job here #{story} ########"
+    Rails.logger.info("CreateStoryTextJob story=#{story.id}")
     story.create_text
   end
 end

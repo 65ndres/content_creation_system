@@ -3,7 +3,7 @@ class CreateSceneImagesJob < ApplicationJob
 
   def perform(*args)
     scene = args.first
-    puts "######## CreateSceneImagesJob #{scene} ########"
+    Rails.logger.info("CreateSceneImagesJob scene=#{scene.id}")
     LeonardoClient.generate_scene_images(scene)
   end
 end

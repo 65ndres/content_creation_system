@@ -3,10 +3,10 @@ class CheckStoryVideoGenerationStatusJob < ApplicationJob
   
     def perform(*args)
       story = args.first
-      puts "######## CheckStoryVideoGenerationStatusJob #{story} ########"
+      Rails.logger.info("CheckStoryVideoGenerationStatusJob story=#{story.id}")
       VideoEditorClient.is_story_video_ready(story)
       if story.video_completed?
-        puts "Yay, the video is completed!!!!  WE made it"
+        Rails.logger.info("Story video completed story=#{story.id}")
       end
     end
   end

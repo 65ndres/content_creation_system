@@ -3,7 +3,7 @@ class CreateSceneVideoJob < ApplicationJob
 
   def perform(*args)
     scene = args.first
-    puts "######## CreateSceneVideoJob #{scene} ########"
+    Rails.logger.info("CreateSceneVideoJob scene=#{scene.id}")
     VideoEditorClient.create_scene_video(scene)
   end
 end

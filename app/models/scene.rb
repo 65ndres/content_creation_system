@@ -2,7 +2,7 @@ class Scene < ApplicationRecord
   has_one_attached :audio
   belongs_to :story
 
-  # after_create :create_video_and_audio
+  after_create :create_video_and_audio
 
   def create_video_and_audio
     LeonardoCreateSceneVideoJob.perform_now(self)

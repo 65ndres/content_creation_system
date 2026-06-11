@@ -22,13 +22,13 @@ class Story < ApplicationRecord
     self.characters = StoryJsonNormalizer.normalize_characters(data.fetch("characters", []))
     self.save
   rescue JSON::ParserError, StandardError => e
-    puts "Error extracting characters for story #{id}: #{e.message}"
+    Rails.logger.error("Error extracting characters for story #{id}: #{e.message}")
     self.characters = []
     self.save
   end
 
   def create_scenes
-    puts "Creating scenes for story #{self.id}"
+    Rails.logger.info("Creating scenes for story #{id}")
     response = ChatGPTClient.generate_scene_images_prompts(self)
     data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
     StoryJsonNormalizer.normalize_pairs(data).each do |obj|
@@ -41,7 +41,7 @@ class Story < ApplicationRecord
       scene.save
     end
   rescue JSON::ParserError, StandardError => e
-    puts "Error creating scenes for story #{id}: #{e.message}"
+    Rails.logger.error("Error creating scenes for story #{id}: #{e.message}")
   end
 
   def scenes_video_generation_completed?

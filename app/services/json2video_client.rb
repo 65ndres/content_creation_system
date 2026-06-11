@@ -149,7 +149,7 @@ class Json2videoClient
         CheckSceneVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
       end
     else
-      puts "Soemthing when wrong with the call, Fix me for a real logger pls"
+      Rails.logger.error("Json2videoClient is_scene_video_ready failed scene=#{scene.id}")
     end
   end
 
@@ -165,7 +165,7 @@ class Json2videoClient
         CheckStoryVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(scene)
       end
     else
-      puts "Soemthing when wrong with the call, Fix me for a real logger pls"
+      Rails.logger.error("Json2videoClient is_merged_audio_video_ready failed scene=#{scene.id}")
     end
   end
 
@@ -181,7 +181,7 @@ class Json2videoClient
         CheckSceneVideoGenerationStatusJob.set(wait: 5.minutes).perform_later(story)
       end
     else
-      puts "Soemthing when wrong with the call, Fix me for a real logger pls"
+      Rails.logger.error("Json2videoClient is_story_video_ready failed story=#{story.id}")
     end
   end
 

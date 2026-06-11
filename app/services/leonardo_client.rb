@@ -23,7 +23,7 @@ class LeonardoClient
         payload["height"]     = story_type.image_height
         payload["modelId"]    = "aa77f04e-3eec-4034-9c07-d0f619684628"
         response              = generate_asset(payload)
-        puts "THis is the response #{response}"
+        Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id} response=#{response.inspect&.slice(0, 500)}")
 
         # scene.leonardo_gen_ids << response["sdGenerationJob"]["generationId"]
         scene.images_data << { "leonardo_image_gen_id": response["sdGenerationJob"]["generationId"] }
@@ -31,9 +31,9 @@ class LeonardoClient
 
         # it would be idea to have the id as the 
       rescue => e
-        puts e
+        Rails.logger.error("Leonardo generate_scene_images scene=#{scene.id}: #{e.message}")
         scene.save
-        puts "ERROR generation images from Leonardo. Fix me for a real logger pls"
+        Rails.logger.error("ERROR generation images from Leonardo scene=#{scene.id}")
       end
     end
 
@@ -75,7 +75,7 @@ class LeonardoClient
       gen_id = image_data["leonardo_motion_image_gen_id"]
       data   = check_asset_generation_status(gen_id)
 
-      puts "this is the the response #{data}"
+      Rails.logger.info("Leonardo check_scene_motion_images scene=#{scene.id} response=#{data.inspect&.slice(0, 500)}")
 
       if data["generations_by_pk"].present? && data["generations_by_pk"]["status"] == "COMPLETE"
         image_data.merge!({"motion_url": data["generations_by_pk"]["generated_images"][0]["motionMP4URL"]})
@@ -96,7 +96,7 @@ class LeonardoClient
     status = pk&.dig("status")
 
     if status == "FAILED"
-      puts "Leonardo video generation failed for scene #{scene.id}"
+      Rails.logger.error("Leonardo video generation failed for scene #{scene.id}")
       return
     end
 
@@ -127,7 +127,7 @@ class LeonardoClient
       response = HTTParty.post(endpoint, options)
       response
     rescue
-      puts "Error in gereate_image, response #{response}"
+      Rails.logger.error("Error in generate_asset: #{response.inspect&.slice(0, 500)}")
     end
   end
 
@@ -144,7 +144,7 @@ class LeonardoClient
 
       HTTParty.post(VIDEO_GENERATION_ENDPOINT, options)
     rescue => e
-      puts "Error in generate_video: #{e.message}"
+      Rails.logger.error("Error in generate_video: #{e.message}")
     end
   end
 
@@ -168,7 +168,7 @@ class LeonardoClient
       scene.save
       CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
     else
-      puts "Error in generate_scene_video: #{response}"
+      Rails.logger.error("Error in generate_scene_video scene=#{scene.id}: #{response.inspect&.slice(0, 500)}")
     end
   end
 
@@ -244,12 +244,12 @@ class LeonardoClient
         payload["isPublic"]       = payload["isVariation"] = false
         payload["motionStrength"] = 4
         response                  = generate_asset(payload, MOTION_ENDPOINT)
-        puts "This is the response for csmi #{response}"
+        Rails.logger.info("Leonardo create_scene_motion_images scene=#{scene.id} response=#{response.inspect&.slice(0, 500)}")
         image_data.merge!({ "leonardo_motion_image_gen_id": response["motionSvdGenerationJob"]["generationId"]})
       rescue => e
-        puts e
+        Rails.logger.error("Leonardo create_scene_motion_images scene=#{scene.id}: #{e.message}")
         scene.save
-        puts "ERROR generation images from Leonardo. Fix me for a real logger pls"
+        Rails.logger.error("ERROR generation motion images from Leonardo scene=#{scene.id}")
       end
     end
 
@@ -258,7 +258,7 @@ class LeonardoClient
       # wee nee to schedule not at the same time
       CheckSceneMotionImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
     else
-      puts "Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count"
+      Rails.logger.error("Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count scene=#{scene.id}")
     end
 
   end

@@ -33,7 +33,7 @@ class ChatGPTClient
     input += character_reference_block(story) if story.characters.present?
     input += scene_text_length_block(story_type)
     text  = responses_request(input)
-    puts "response, this is the response #{text}"
+    Rails.logger.info("ChatGPTClient scene prompts response story=#{story.id} body=#{text&.slice(0, 500)}")
     text
   end
 
@@ -72,13 +72,13 @@ class ChatGPTClient
 
     stdout, stderr, status = Open3.capture3(*cmd)
     unless status.success?
-      puts "ChatGPTClient curl failed: #{stderr}"
+      Rails.logger.error("ChatGPTClient curl failed: #{stderr}")
       raise "OpenAI request failed: #{stderr.presence || stdout}"
     end
 
     parsed = JSON.parse(stdout)
     if parsed['error'].present?
-      puts "ChatGPTClient API error: #{parsed['error']}"
+      Rails.logger.error("ChatGPTClient API error: #{parsed['error']}")
       raise parsed['error'].to_json
     end
 
@@ -87,7 +87,7 @@ class ChatGPTClient
 
     text
   rescue JSON::ParserError => e
-    puts "ChatGPTClient invalid JSON: #{e.message} body=#{stdout&.slice(0, 500)}"
+    Rails.logger.error("ChatGPTClient invalid JSON: #{e.message} body=#{stdout&.slice(0, 500)}")
     raise
   end
 

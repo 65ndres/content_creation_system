@@ -8,6 +8,8 @@ one:
   output_high: 1
   image_width: 1
   image_high: 1
+  scene_text_min_chars: 70
+  scene_text_max_chars: 100
 
 two:
   name: MyString
@@ -17,3 +19,5 @@ two:
   output_high: 1
   image_width: 1
   image_high: 1
+  scene_text_min_chars: 70
+  scene_text_max_chars: 100

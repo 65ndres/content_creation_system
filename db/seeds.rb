@@ -51,6 +51,8 @@ story_type.image_height  = 576
 story_type.image_width   = 1024
 story_type.output_height = 1080
 story_type.output_width  = 1920
+story_type.scene_text_min_chars = 70
+story_type.scene_text_max_chars = 100
 story_type.save
 
 # Real-events / documentary-style pipeline: factual narration + photoreal image prompts with locked character descriptions.
@@ -95,6 +97,8 @@ real_events_type.image_height  = story_type.image_height
 real_events_type.image_width   = story_type.image_width
 real_events_type.output_height = story_type.output_height
 real_events_type.output_width  = story_type.output_width
+real_events_type.scene_text_min_chars = 70
+real_events_type.scene_text_max_chars = 100
 real_events_type.save!
 
 # generate a 500 word story detailing the Operation Northwoods describe what it was, where it was started, who approved it, how it affected its victims and how it ended, for any quotation marks make sure to use single

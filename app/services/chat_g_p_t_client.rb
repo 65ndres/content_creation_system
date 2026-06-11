@@ -16,7 +16,7 @@ class ChatGPTClient
     AI image and video generation. alwys include age or age range, build, face, hair type, hair color, skin tone where
     relevant, typical clothing, and distinguishing features.
     Do not add special characters, keep it simple and clean.
-  
+    
     Return ONLY valid JSON with no markdown fences or commentary. Use this structure:
     { "characters": [ { "name": "Character Name", "physical_description": "Very detailed description..." } ] }
     Story:
@@ -28,8 +28,10 @@ class ChatGPTClient
   end
 
   def self.generate_scene_images_prompts(story)
-    input = story.story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s
+    story_type = story.story_type
+    input = story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s
     input += character_reference_block(story) if story.characters.present?
+    input += scene_text_length_block(story_type)
     text  = responses_request(input)
     puts "response, this is the response #{text}"
     text
@@ -44,6 +46,16 @@ class ChatGPTClient
       lines.join("\n")
   end
   private_class_method :character_reference_block
+
+  def self.scene_text_length_block(story_type)
+    min_chars = story_type.scene_text_min_chars
+    max_chars = story_type.scene_text_max_chars
+
+    "\n\nScene text length rules: Each `original` string must be between #{min_chars} and #{max_chars} " \
+      "characters (inclusive). Split or combine story sentences as needed so every `original` fits this range. " \
+      "Do not output pairs outside this range."
+  end
+  private_class_method :scene_text_length_block
 
   def self.responses_request(input)
     api_key = ENV['OPENAI_API_KEY'].presence || ENV['CHATGPT_KEY']

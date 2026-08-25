@@ -4,6 +4,50 @@ class VideoEditorClient
 
   VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
 
+  def self.generate_scene_video(scene)
+    # if scene.video_url.present? || scene.video_gen_id.present?
+    #   Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: video already queued or complete")
+    #   return
+    # end
+
+    unless scene.audio.attached?
+      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: audio not attached")
+      return
+    end
+
+    payload = generate_scene_video_payload(scene)
+    if payload["images_urls"].blank?
+      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: no static_url images")
+      return
+    end
+
+    headers                  = {}
+    options                  = {}
+    headers[:"Content-Type"] = "application/json"
+    options[:headers]        = headers
+    options[:body]           = payload.to_json
+
+    response = HTTParty.post(VIDEO_ENDPOINT + "/generate_scene_video", options)
+    gen_id   = response_body(response)&.dig("gen_id")
+
+    unless response.success? && gen_id.present?
+      Rails.logger.error(
+        "generate_scene_video failed scene=#{scene.id} status=#{response.code} body=#{response.body}"
+      )
+      return
+    end
+
+    scene.video_gen_id = gen_id
+
+    if scene.save
+      CheckSceneVideoGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
+    end
+  end
+
+  def self.create_scene_video(scene)
+    generate_scene_video(scene)
+  end
+
   def self.merge_audio_video(scene)
     unless scene.leonardo_video_url.present?
       Rails.logger.warn("merge_audio_video skipped scene=#{scene.id}: missing leonardo_video_url")
@@ -63,6 +107,17 @@ class VideoEditorClient
     payload["story_id"]    = story.id
     payload
   end
+
+  def self.generate_scene_video_payload(scene)
+    payload                = {}
+    payload["scene_id"]    = scene.id
+    payload["story_id"]    = scene.story_id
+    payload["images_urls"] = scene.images_data.filter_map { |image_data| image_data["static_url"] }
+    payload["audio_url"]   = scene.audio.url
+    payload["scene_text"]  = scene.text
+    payload
+  end
+  private_class_method :generate_scene_video_payload
 
   def self.merge_audio_video_payload(scene)
     payload                = {}

@@ -29,7 +29,9 @@ class Story < ApplicationRecord
 
   def create_scenes
     Rails.logger.info("Creating scenes for story #{id}")
+    puts "Creating scenes for story #{id}"
     response = ChatGPTClient.generate_scene_images_prompts(self)
+    puts "PACA   response: #{response}"
     data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
     StoryJsonNormalizer.normalize_pairs(data).each do |obj|
       prompts               = StoryJsonNormalizer.normalize_ai_image_prompts(obj["aiImagePrompts"])

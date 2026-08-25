@@ -93,7 +93,7 @@ class Json2videoClient
       element_obj["elements"]      = []
       element_obj_value            = {}
 
-      element_obj_value["src"]      = image["url"]
+      element_obj_value["src"]      = image["static_url"]
       element_obj_value["type"]     = "image"
       element_obj_value["zoom"]     = 2
       element_obj_value["width"]    = story_type.output_width

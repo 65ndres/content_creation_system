@@ -2,10 +2,11 @@ class Scene < ApplicationRecord
   has_one_attached :audio
   belongs_to :story
 
-  # after_create :create_video_and_audio
+  after_create :create_video_and_audio
 
   def create_video_and_audio
-    LeonardoCreateSceneVideoJob.perform_now(self)
+    # LeonardoClient.generate_scene_images(self)
+    CreateSceneImagesJob.perform_now(self)
     CreateSceneAudioJob.perform_now(self)
   end
 
@@ -17,11 +18,11 @@ class Scene < ApplicationRecord
     end
   end
 
-  # def images_generation_completed?
-  #   self.images_data.reduce(true) do |is_completed, image_data|
-  #     is_completed && image_data["static_url"].present?
-  #   end
-  # end
+  def images_generation_completed?
+    self.images_data.reduce(true) do |is_completed, image_data|
+      is_completed && image_data["static_url"].present?
+    end
+  end
 
   # def motion_images_generation_completed?
   #   self.images_data.reduce(true) do |is_completed, image_data|

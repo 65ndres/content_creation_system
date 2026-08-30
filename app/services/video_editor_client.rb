@@ -49,7 +49,7 @@ class VideoEditorClient
   end
 
   def self.merge_audio_video(scene)
-    unless scene.leonardo_video_url.present?
+    unless scene.video_url.present?
       Rails.logger.warn("merge_audio_video skipped scene=#{scene.id}: missing leonardo_video_url")
       return
     end
@@ -121,7 +121,7 @@ class VideoEditorClient
 
   def self.merge_audio_video_payload(scene)
     payload                = {}
-    payload["video_url"]  = scene.leonardo_video_url
+    payload["video_url"]  = scene.video_url
     payload["audio_url"]  = scene.audio.url
     payload["scene_id"]   = scene.id
     payload["story_id"]   = scene.story_id
@@ -130,7 +130,14 @@ class VideoEditorClient
 
   def self.is_scene_video_ready(scene)
     gen_id = scene.video_gen_id
-    data   = generation_status(gen_id)
+    if gen_id.blank?
+      Rails.logger.warn("is_scene_video_ready skipped scene=#{scene.id}: missing video_gen_id")
+      return
+    end
+
+    data = generation_status(gen_id)
+    Rails.logger.info("is_scene_video_ready scene=#{scene.id} data=#{data.inspect}")
+
     if data["completed"] == true
       scene.video_url = data["file_path"]
       scene.save

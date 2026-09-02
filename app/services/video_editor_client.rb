@@ -5,19 +5,25 @@ class VideoEditorClient
   VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
 
   def self.generate_scene_video(scene)
-    # if scene.video_url.present? || scene.video_gen_id.present?
-    #   Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: video already queued or complete")
-    #   return
-    # end
+    if scene.video_url.present?
+      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: video_url already present")
+      return
+    end
 
     unless scene.audio.attached?
-      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: audio not attached")
+      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: audio not attached, retrying")
+      GenerateSceneVideoJob.set(wait: 1.minute).perform_later(scene)
       return
     end
 
     payload = generate_scene_video_payload(scene)
     if payload["images_urls"].blank?
       Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: no static_url images")
+      return
+    end
+
+    if scene.video_gen_id.present?
+      CheckSceneVideoGenerationStatusJob.perform_later(scene)
       return
     end
 
@@ -34,6 +40,7 @@ class VideoEditorClient
       Rails.logger.error(
         "generate_scene_video failed scene=#{scene.id} status=#{response.code} body=#{response.body}"
       )
+      GenerateSceneVideoJob.set(wait: 1.minute).perform_later(scene)
       return
     end
 
@@ -114,7 +121,6 @@ class VideoEditorClient
     payload["story_id"]    = scene.story_id
     payload["images_urls"] = scene.images_data.filter_map { |image_data| image_data["static_url"] }
     payload["audio_url"]   = scene.audio.url
-    payload["scene_text"]  = scene.text
     payload
   end
   private_class_method :generate_scene_video_payload
@@ -138,7 +144,7 @@ class VideoEditorClient
     data = generation_status(gen_id)
     Rails.logger.info("is_scene_video_ready scene=#{scene.id} data=#{data.inspect}")
 
-    if data["completed"] == true
+    if data["completed"] == true || data["completed"] == "true"
       scene.video_url = data["file_path"]
       scene.save
     else

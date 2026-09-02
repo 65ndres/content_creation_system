@@ -19,9 +19,13 @@ class Scene < ApplicationRecord
   end
 
   def images_generation_completed?
-    self.images_data.reduce(true) do |is_completed, image_data|
-      is_completed && image_data["static_url"].present?
-    end
+    return false if images_data.blank?
+
+    images_data.all? { |image_data| image_data["static_url"].present? }
+  end
+
+  def has_generated_stills?
+    images_data.any? { |image_data| image_data["static_url"].present? }
   end
 
   # def motion_images_generation_completed?

@@ -4,7 +4,7 @@ class Story < ApplicationRecord
   has_many   :scenes
 
   after_create :create_text_and_scenes
-  
+
   def create_text_and_scenes
     CreateStoryTextJob.perform_now(self)
     CreateStoryScenesJob.set(wait: 1.minute).perform_later(self)
@@ -13,7 +13,6 @@ class Story < ApplicationRecord
   def create_text
     self.text = ChatGPTClient.generate_story_text(self)
     self.save
-    create_characters
   end
 
   def create_characters
@@ -29,9 +28,7 @@ class Story < ApplicationRecord
 
   def create_scenes
     Rails.logger.info("Creating scenes for story #{id}")
-    puts "Creating scenes for story #{id}"
     response = ChatGPTClient.generate_scene_images_prompts(self)
-    puts "PACA   response: #{response}"
     data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
     StoryJsonNormalizer.normalize_pairs(data).each do |obj|
       prompts               = StoryJsonNormalizer.normalize_ai_image_prompts(obj["aiImagePrompts"])
@@ -47,7 +44,7 @@ class Story < ApplicationRecord
   end
 
   def scenes_video_generation_completed?
-    self.scenes.reduce(true) do |is_completed, scene| 
+    self.scenes.reduce(true) do |is_completed, scene|
       is_completed && scene.video_url.present?
     end
   end
@@ -67,5 +64,4 @@ class Story < ApplicationRecord
   def video_completed?
     self.video_url.present?
   end
- 
 end

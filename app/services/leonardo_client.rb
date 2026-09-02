@@ -19,7 +19,7 @@ class LeonardoClient
     StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each do |prompt|
       begin
         payload = {
-          "prompt"     => prompt,
+          "prompt"     => truncate_hailuo_prompt(prompt.to_s),
           "modelId"    => LUCID_ORIGIN_MODEL_ID,
           "width"      => story_type.image_width,
           "height"     => story_type.image_height,
@@ -60,7 +60,9 @@ class LeonardoClient
     response
   end
 
-  def self.check_scene_images_generation_status(scene) 
+  def self.check_scene_images_generation_status(scene)
+    pending = false
+
     scene.images_data.each do |image_data|
       next if image_data["static_url"].present?
 
@@ -82,17 +84,21 @@ class LeonardoClient
           "prompt"      => pk["prompt"],
           "leonardo_id" => first_image["id"]
         )
-
-        if scene.images_generation_completed?
-          scene.save
-          VideoEditorClient.generate_scene_video(scene)
-        end
       else
+        pending = true
         CheckSceneImagesGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
         break
       end
     end
+
     scene.save
+    return if pending
+
+    if scene.has_generated_stills? && scene.video_url.blank? && scene.video_gen_id.blank?
+      GenerateSceneVideoJob.perform_later(scene)
+    elsif scene.video_url.blank? && scene.video_gen_id.blank?
+      Rails.logger.error("Leonardo check_scene_images_generation_status scene=#{scene.id}: no stills to build video")
+    end
   end
 
   # def self.check_scene_motion_images_generation_status(scene)
@@ -238,6 +244,7 @@ class LeonardoClient
   def self.truncate_hailuo_prompt(prompt)
     return prompt if prompt.length <= MAX_HAILUO_PROMPT_LENGTH
 
+    Rails.logger.warn("Leonardo prompt truncated from #{prompt.length} to #{MAX_HAILUO_PROMPT_LENGTH} characters")
     truncated = prompt.slice(0, MAX_HAILUO_PROMPT_LENGTH)
     truncated.sub(/\s+\S*\z/, "").strip
   end

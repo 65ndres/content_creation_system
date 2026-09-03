@@ -37,7 +37,7 @@ Then talk about the facts of the article.
 Finalize tell the reader to take action in order to take advantage of the news shared in the article."
 
 story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a vivid, dynamic comic book illustration. The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story.
-Please format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of three strings. Each string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
+Please format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of exactly one string. That string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
 Guidelines for the prompts:
 1. **Comic Book Style Declaration**: Start each prompt with 'Create a vivid, dynamic comic book illustration of...'
 2. **Character and Action Description**: Clearly describe the characters and their actions as depicted in the scene.
@@ -112,4 +112,103 @@ real_events_type.save!
 
 
 
+conspiracy_story_type = StoryType.new
+conspiracy_story_type.name = "Government Outreach"
+conspiracy_story_type.story_prompt_text = "Read the article above.
 
+You're a mystery story teller.
+
+Let's create a 200 word factual review of the article.
+
+I will send that narration to an AI voice generator that will be used on top of images.
+
+First create a 10 word headline
+
+First create a single sentence intro that will attract conspiracy enthusiasts.
+
+Then take a sentence to explain why this story is important.
+
+Then talk about the facts of the article.
+
+Finalize asking the reader if their view of our government is still the same."
+
+
+conspiracy_story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a dark, obscure comic book illustration.The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story, the prompts must never be too graphic or generate realistic images.
+Format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of exactly one string. That string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
+Guidelines for the prompts:
+1. **Comic Book Style Declaration**: Start each prompt with 'Create a dark, obscure comic book illustration of...'
+2. **Character and Action Description**: Clearly describe the characters and their actions as depicted in the scene.
+3. **Setting/Background**: Include details of the environment or background where the action takes place.
+4. **Mood and Theme**: Reflect the mood and thematic elements of the sentence in the illustration details.
+5. **Visual Elements**: Incorporate specific visual elements that should be highlighted, such as darkness, specific emotions, or unique environmental features.
+The aim is to receive creative, engaging prompts that will inspire detailed and lively illustrations, encapsulating the essence of the story through the lens of comic book art.
+Here's the story I want to use:"
+
+conspiracy_story_type.image_height  = 1024
+conspiracy_story_type.image_width   = 576
+conspiracy_story_type.output_height = 1920
+conspiracy_story_type.output_width  = 1080 
+
+conspiracy_story_type.save
+
+dark_fact_story_type = StoryType.new
+dark_fact_story_type.name = "Dark Fact"
+dark_fact_story_type.story_prompt_text = "Read the story above.
+You're a mystery story teller. Let's create a 300 word factual review of the story where you will
+explain with detail the timeline of the story, you will explain the why, what, when and where.
+To finalize ask the reader to take action by subscribing to the channel and to leave a comment saying whether they still view our government the same."
+
+dark_fact_story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a dark, obscure comic book illustration. The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story.
+Format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of exactly one string. That string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
+Guidelines for the prompts:
+1. **Comic Book Style Declaration**: Start each prompt with 'Create a dark, obscure comic book illustration of...'
+2. **Character and Action Description**: Clearly describe the characters and their actions as depicted in the scene.
+3. **Setting/Background**: Include details of the environment or background where the action takes place.
+4. **Mood and Theme**: Reflect the mood and thematic elements of the sentence in the illustration details.
+5. **Visual Elements**: Incorporate specific visual elements that should be highlighted, such as darkness, specific emotions, or unique environmental features.
+The aim is to receive creative, engaging prompts that will inspire detailed and lively illustrations, encapsulating the essence of the story through the lens of comic book art.
+Here's the story I want to use:"
+
+dark_fact_story_type.image_height  = 576
+dark_fact_story_type.image_width   = 1024
+dark_fact_story_type.output_height = 1080
+dark_fact_story_type.output_width  = 1920
+dark_fact_story_type.scene_text_min_chars = 70
+dark_fact_story_type.scene_text_max_chars = 100
+dark_fact_story_type.save
+
+source = "Chronological Summary of The Cabin in the Woods
+
+The film begins with a group of college friends—Dana, Curt, Jules, Holden, and Marty—preparing for a weekend trip to a remote cabin. At the same time, two technicians, Sitterson and Hadley, arrive at a mysterious underground facility and begin preparing for an operation. The connection between the two groups is initially unclear.
+
+The friends drive into the countryside and stop at a rundown gas station, where a strange attendant gives them ominous warnings about the road and the cabin. They eventually arrive and settle in. The cabin seems ordinary, although there are several unsettling details.
+
+Meanwhile, the technicians monitor the friends through hidden cameras. It becomes apparent that the cabin has been deliberately designed to manipulate what happens to the group. The facility can control aspects of the environment and is secretly influencing the friends' behavior.
+
+That night, the group discovers strange objects in the cabin, including an old diary. Dana reads from it, unintentionally triggering a supernatural threat. The friends are attacked by a family of zombie-like creatures. During the chaos, the group becomes separated, and one of the friends is killed.
+
+The survivors attempt to escape, but the cabin and surrounding area have been engineered to prevent them from leaving. The technicians watch the events unfold and treat the deaths as part of a carefully planned ritual rather than an unexpected disaster.
+
+As more members of the group are killed, the film reveals that the people in the underground facility are deliberately orchestrating the horror. They use chemicals, environmental controls, and other technology to influence the characters while allowing them to believe they are making their own choices.
+
+The group members also fit stereotypical horror roles: the Virgin, the Athlete, the Scholar, the Fool, and the Whore. The facility's purpose is to ensure that these characters die in an appropriate order. Their deaths are not simply entertainment; they are sacrifices intended to satisfy ancient supernatural beings known as the Ancient Ones.
+
+The operation is part of a worldwide system. Similar facilities exist in other countries, each conducting its own ritual with different types of monsters. The sacrifices must be completed successfully to prevent the Ancient Ones from awakening and destroying humanity.
+
+As the situation deteriorates, Dana and Marty begin to realize that something much larger is happening. Marty, who has been suspicious from the beginning, survives longer than expected because he has avoided being manipulated as easily as the others.
+
+Eventually, the facility releases a huge collection of monsters, revealing that almost every classic horror creature imaginable is being kept underground. The resulting chaos allows Dana and Marty to escape into the facility.
+
+Inside, they discover the truth about the operation and encounter the technicians. They realize that the entire weekend was designed to produce their deaths as part of the ritual.
+
+Dana and Marty eventually reach a control area where they confront the people responsible. They learn that they are the final surviving participants and that their deaths would complete the ritual.
+
+However, they refuse to cooperate. The film makes clear that their survival is not enough: if the required sacrifices are not completed, the Ancient Ones will awaken.
+
+The technicians argue that sacrificing the remaining survivors is necessary to save billions of people. Dana and Marty are forced to consider whether they should allow themselves to die for humanity's survival.
+
+Ultimately, they choose not to participate in the ritual. Their refusal means the ritual fails.
+
+The movie ends with the consequences of that decision. The Ancient Ones begin to awaken beneath the facility, and a gigantic hand emerges from the ground, demonstrating that humanity's failure to complete the ritual has doomed the world.
+
+The story therefore turns the traditional horror-movie formula upside down: what initially appears to be a group of young people accidentally encountering a supernatural threat is actually a carefully controlled ritual designed to make them behave like characters in a conventional horror movie. Their decision to reject that role ultimately causes the apocalypse."

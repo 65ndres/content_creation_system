@@ -5,37 +5,52 @@ class LeonardoClient
 
   GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
   MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
-  VIDEO_GENERATION_ENDPOINT = "https://cloud.leonardo.ai/api/rest/v2/generations"
+  V2_GENERATION_ENDPOINT    = "https://cloud.leonardo.ai/api/rest/v2/generations"
+  VIDEO_GENERATION_ENDPOINT = V2_GENERATION_ENDPOINT
   # See https://docs.leonardo.ai/docs/hailuo-23 — model slug, mode, duration, and width/height are strict.
   HAILUO_VIDEO_MODEL      = "hailuo-2_3"
   DEFAULT_HAILUO_DURATION = 6 # 1080p allows 6s only; 768p allows 6 or 10
   MAX_HAILUO_PROMPT_LENGTH = 1500
+  MAX_NANO_BANANA_PROMPT_LENGTH = 9999
   # Lucid Origin — current getting-started default. See https://docs.leonardo.ai/docs/getting-started
   LUCID_ORIGIN_MODEL_ID   = "7b592283-e8a7-4c5a-9ba6-d18c31f258b9"
   DYNAMIC_STYLE_UUID      = "111dc692-d470-4eec-b791-3475abac4c46"
+  DEFAULT_IMAGE_MODEL     = "lucid"
+  NANO_BANANA_2_MODEL     = "nano-banana-2"
+  NANO_BANANA_2_WIDTH     = 848
+  NANO_BANANA_2_HEIGHT    = 1264
+  IMAGE_MODEL_ALIASES     = {
+    "lucid"          => DEFAULT_IMAGE_MODEL,
+    "lucid-origin"   => DEFAULT_IMAGE_MODEL,
+    "nano-banana-2"  => NANO_BANANA_2_MODEL
+  }.freeze
+
+  def self.normalize_image_model(model)
+    return DEFAULT_IMAGE_MODEL if model.blank?
+
+    key = model.to_s.strip.downcase.tr("_", "-")
+    IMAGE_MODEL_ALIASES.fetch(key) do
+      raise ArgumentError, "Unknown image generation model #{model.inspect}. Expected lucid or nano-banana-2."
+    end
+  end
 
   def self.generate_scene_images(scene)
-    story_type = scene.story.story_type
+    story      = scene.story
+    story_type = story.story_type
+    model      = normalize_image_model(story.image_generation_model)
+    api        = image_model_api(model)
+    endpoint   = image_generation_endpoint(model)
+
     StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each do |prompt|
       begin
-        payload = {
-          "prompt"     => truncate_hailuo_prompt(prompt.to_s),
-          "modelId"    => LUCID_ORIGIN_MODEL_ID,
-          "width"      => story_type.image_width,
-          "height"     => story_type.image_height,
-          "num_images" => 1,
-          "contrast"   => 3.5,
-          "alchemy"    => false,
-          "styleUUID"  => DYNAMIC_STYLE_UUID,
-          "public"     => false
-        }
-        response = generate_asset(payload)
-        Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id} response=#{response.inspect&.slice(0, 500)}")
+        payload  = image_generation_payload(model, prompt, story_type)
+        response = generate_asset(payload, endpoint)
+        Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id} model=#{model} response=#{response.inspect&.slice(0, 500)}")
 
-        generation_id = response.dig("sdGenerationJob", "generationId")
+        generation_id = extract_generation_id(response)
         if generation_id.present?
           scene.images_data_will_change!
-          scene.images_data << { "leonardo_image_gen_id" => generation_id }
+          scene.images_data << { "leonardo_image_gen_id" => generation_id, "api" => api }
         else
           Rails.logger.error("Leonardo generate_scene_images scene=#{scene.id}: missing generationId #{response.inspect&.slice(0, 500)}")
         end
@@ -54,10 +69,10 @@ class LeonardoClient
     end
   end
 
-  def self.check_asset_generation_status(gen_id)
-    headers  = { 'authorization' => "Bearer #{ENV['LEONARDO_KEY']}" }
-    response = HTTParty.get("https://cloud.leonardo.ai/api/rest/v1/generations/#{gen_id}", headers: headers)
-    response
+  def self.check_asset_generation_status(gen_id, api: "v1")
+    # Create can be v1 or v2; status is only exposed on GET /v1/generations/{id}.
+    headers = { "authorization" => "Bearer #{ENV['LEONARDO_KEY']}", "Accept" => "application/json" }
+    HTTParty.get("#{GENERATION_ENDPOINT}/#{gen_id}", headers: headers)
   end
 
   def self.check_scene_images_generation_status(scene)
@@ -66,22 +81,22 @@ class LeonardoClient
     scene.images_data.each do |image_data|
       next if image_data["static_url"].present?
 
-      gen_id = image_data["leonardo_image_gen_id"]
-      data   = check_asset_generation_status(gen_id)
-      pk     = data["generations_by_pk"]
-      status = pk&.dig("status")
+      gen_id  = image_data["leonardo_image_gen_id"]
+      data    = check_asset_generation_status(gen_id)
+      payload = generation_status_payload(data)
+      status  = generation_status_value(payload)
 
       if status == "FAILED"
         Rails.logger.error("Leonardo image generation failed for scene #{scene.id} gen_id=#{gen_id}")
         next
       end
 
-      first_image = pk&.dig("generated_images")&.first
+      first_image = generation_first_image(payload)
       if status == "COMPLETE" && first_image.present?
         scene.images_data_will_change!
         image_data.merge!(
-          "static_url"  => first_image["url"],
-          "prompt"      => pk["prompt"],
+          "static_url"  => first_image["url"] || first_image["src"],
+          "prompt"      => payload["prompt"],
           "leonardo_id" => first_image["id"]
         )
       else
@@ -242,13 +257,92 @@ class LeonardoClient
   private_class_method :description_embedded_in_prompt?
 
   def self.truncate_hailuo_prompt(prompt)
-    return prompt if prompt.length <= MAX_HAILUO_PROMPT_LENGTH
-
-    Rails.logger.warn("Leonardo prompt truncated from #{prompt.length} to #{MAX_HAILUO_PROMPT_LENGTH} characters")
-    truncated = prompt.slice(0, MAX_HAILUO_PROMPT_LENGTH)
-    truncated.sub(/\s+\S*\z/, "").strip
+    truncate_prompt(prompt, MAX_HAILUO_PROMPT_LENGTH)
   end
   private_class_method :truncate_hailuo_prompt
+
+  def self.truncate_prompt(prompt, max_length)
+    return prompt if prompt.length <= max_length
+
+    Rails.logger.warn("Leonardo prompt truncated from #{prompt.length} to #{max_length} characters")
+    truncated = prompt.slice(0, max_length)
+    truncated.sub(/\s+\S*\z/, "").strip
+  end
+  private_class_method :truncate_prompt
+
+  def self.image_model_api(model)
+    normalize_image_model(model) == NANO_BANANA_2_MODEL ? "v2" : "v1"
+  end
+  private_class_method :image_model_api
+
+  def self.image_generation_endpoint(model)
+    image_model_api(model) == "v2" ? V2_GENERATION_ENDPOINT : GENERATION_ENDPOINT
+  end
+  private_class_method :image_generation_endpoint
+
+  def self.image_generation_payload(model, prompt, story_type)
+    model = normalize_image_model(model)
+    if model == NANO_BANANA_2_MODEL
+      {
+        "model"      => NANO_BANANA_2_MODEL,
+        "parameters" => {
+          "width"          => NANO_BANANA_2_WIDTH,
+          "height"         => NANO_BANANA_2_HEIGHT,
+          "prompt"         => truncate_prompt(prompt.to_s, MAX_NANO_BANANA_PROMPT_LENGTH),
+          "quantity"       => 1,
+          "style_ids"      => [DYNAMIC_STYLE_UUID],
+          "prompt_enhance" => "OFF"
+        },
+        "public"     => false
+      }
+    else
+      {
+        "prompt"     => truncate_hailuo_prompt(prompt.to_s),
+        "modelId"    => LUCID_ORIGIN_MODEL_ID,
+        "width"      => story_type.image_width,
+        "height"     => story_type.image_height,
+        "num_images" => 1,
+        "contrast"   => 3.5,
+        "alchemy"    => false,
+        "styleUUID"  => DYNAMIC_STYLE_UUID,
+        "public"     => false
+      }
+    end
+  end
+  private_class_method :image_generation_payload
+
+  def self.extract_generation_id(response)
+    return if response.blank?
+
+    response.dig("sdGenerationJob", "generationId") ||
+      response["generationId"] ||
+      response.dig("generate", "generationId")
+  end
+  private_class_method :extract_generation_id
+
+  def self.generation_status_payload(data)
+    return {} if data.blank?
+
+    hash = data.respond_to?(:parsed_response) ? data.parsed_response : data
+    return {} unless hash.is_a?(Hash)
+
+    hash = hash.stringify_keys
+    pk   = hash["generations_by_pk"]
+    pk.is_a?(Hash) ? pk.stringify_keys : hash
+  end
+  private_class_method :generation_status_payload
+
+  def self.generation_status_value(payload)
+    (payload["status"] || payload["job_status"]).to_s.upcase.presence
+  end
+  private_class_method :generation_status_value
+
+  def self.generation_first_image(payload)
+    images = payload["generated_images"] || payload["images"] || []
+    image  = Array(images).first
+    image.respond_to?(:stringify_keys) ? image.stringify_keys : image
+  end
+  private_class_method :generation_first_image
 
   # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
   # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.

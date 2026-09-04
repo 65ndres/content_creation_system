@@ -3,7 +3,16 @@ class Story < ApplicationRecord
   belongs_to :story_type
   has_many   :scenes
 
+  before_validation :normalize_image_generation_model
   after_create :create_text_and_scenes
+
+  def self.start(story_type, source, model: LeonardoClient::DEFAULT_IMAGE_MODEL)
+    create!(
+      story_type: story_type,
+      source: source,
+      image_generation_model: model
+    )
+  end
 
   def create_text_and_scenes
     CreateStoryTextJob.perform_now(self)
@@ -63,5 +72,11 @@ class Story < ApplicationRecord
 
   def video_completed?
     self.video_url.present?
+  end
+
+  private
+
+  def normalize_image_generation_model
+    self.image_generation_model = LeonardoClient.normalize_image_model(image_generation_model)
   end
 end

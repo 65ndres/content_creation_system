@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_06_10_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_04_050600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -128,14 +128,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_06_10_130000) do
     t.string "name", null: false
     t.text "story_prompt_text", null: false
     t.text "scenes_json_prompts", null: false
-    t.integer "output_width", null: false
-    t.integer "output_height", null: false
-    t.integer "image_width", null: false
-    t.integer "image_height", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "scene_text_min_chars", default: 70, null: false
     t.integer "scene_text_max_chars", default: 100, null: false
+    t.integer "image_width", null: false
+    t.integer "image_height", null: false
+    t.integer "output_width", null: false
+    t.integer "output_height", null: false
   end
 
   create_table "testproducts", primary_key: "testproduct_id", id: :serial, force: :cascade do |t|

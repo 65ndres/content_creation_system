@@ -27,6 +27,30 @@ class ChatGPTClient
     responses_request(input)
   end
 
+  SOFTEN_IMAGE_PROMPTS = <<~PROMPT.squish
+    Rewrite each AI image generation prompt to be less violent, less explicit, and less gory.
+    Keep the same characters, setting, narrative, and visual style.
+    Do not add commentary or markdown.
+    Return ONLY valid JSON with this structure:
+    { "prompts": ["rewritten prompt 1", "rewritten prompt 2"] }
+    Use the same number of prompts, in the same order.
+  PROMPT
+
+  def self.soften_image_prompts(prompts)
+    prompts = StoryJsonNormalizer.normalize_ai_image_prompts(prompts)
+    return [] if prompts.blank?
+
+    numbered = prompts.each_with_index.map { |prompt, i| "#{i + 1}. #{prompt}" }.join("\n\n")
+    response = responses_request("#{SOFTEN_IMAGE_PROMPTS}\n\nPrompts:\n#{numbered}")
+    data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
+    rewritten = StoryJsonNormalizer.normalize_ai_image_prompts(data["prompts"] || data)
+    Rails.logger.info("ChatGPTClient soften_image_prompts count=#{rewritten.size}")
+    rewritten
+  rescue JSON::ParserError, StandardError => e
+    Rails.logger.error("ChatGPTClient soften_image_prompts failed: #{e.message}")
+    []
+  end
+
   def self.generate_scene_images_prompts(story)
     story_type = story.story_type
     input = story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s

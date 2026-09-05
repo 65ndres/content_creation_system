@@ -137,17 +137,23 @@ class LeonardoClient
     scene.images_data.each do |image_data|
       next if image_data["static_url"].present?
 
-      gen_id  = image_data["leonardo_image_gen_id"]
-      data    = check_asset_generation_status(gen_id)
-      payload = generation_status_payload(data)
-      status  = generation_status_value(payload)
+      gen_id      = image_data["leonardo_image_gen_id"]
+      data        = check_asset_generation_status(gen_id)
+      payload     = generation_status_payload(data)
+      status      = generation_status_value(payload)
+      first_image = generation_first_image(payload)
 
-      if status == "FAILED"
-        Rails.logger.error("Leonardo image generation failed for scene #{scene.id} gen_id=#{gen_id}")
-        next
+      if generation_blocked?(status, payload, first_image)
+        if rewrite_blocked_scene_prompts(scene)
+          return
+        end
+
+        if status == "FAILED"
+          Rails.logger.error("Leonardo image generation failed for scene #{scene.id} gen_id=#{gen_id}")
+          next
+        end
       end
 
-      first_image = generation_first_image(payload)
       if status == "COMPLETE" && first_image.present?
         scene.images_data_will_change!
         image_data.merge!(
@@ -445,6 +451,60 @@ class LeonardoClient
     image.respond_to?(:stringify_keys) ? image.stringify_keys : image
   end
   private_class_method :generation_first_image
+
+  def self.generation_blocked?(status, payload, first_image)
+    status == "FAILED" || image_nsfw?(first_image) || prompt_moderated?(payload)
+  end
+  private_class_method :generation_blocked?
+
+  def self.image_nsfw?(image)
+    return false if image.blank?
+
+    ActiveModel::Type::Boolean.new.cast(image["nsfw"])
+  end
+  private_class_method :image_nsfw?
+
+  def self.prompt_moderated?(payload)
+    mods = payload["prompt_moderations"] || payload["promptModerations"]
+    Array(mods).any? do |mod|
+      next false unless mod.is_a?(Hash)
+
+      classifications = mod["moderationClassification"] || mod["moderation_classification"]
+      Array(classifications).any?(&:present?)
+    end
+  end
+  private_class_method :prompt_moderated?
+
+  def self.rewrite_blocked_scene_prompts(scene)
+    if scene.image_prompt_rewrite_count.to_i >= 1
+      Rails.logger.info("Leonardo scene=#{scene.id}: prompt already rewritten, not retrying")
+      return false
+    end
+
+    original = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt)
+    if original.blank?
+      Rails.logger.error("Leonardo scene=#{scene.id}: no prompts to soften")
+      return false
+    end
+
+    softened = ChatGPTClient.soften_image_prompts(original)
+    if softened.blank? || softened.size != original.size
+      Rails.logger.error("Leonardo scene=#{scene.id}: soften_image_prompts returned unexpected prompts")
+      return false
+    end
+
+    scene.ai_image_prompt = softened
+    scene.images_data = []
+    scene.image_prompt_rewrite_count = scene.image_prompt_rewrite_count.to_i + 1
+    scene.save
+    Rails.logger.info("Leonardo scene=#{scene.id}: softened prompts and requeued image generation")
+    CreateSceneImagesJob.perform_later(scene)
+    true
+  rescue => e
+    Rails.logger.error("Leonardo scene=#{scene.id}: failed to soften prompts #{e.message}")
+    false
+  end
+  private_class_method :rewrite_blocked_scene_prompts
 
   # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
   # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.

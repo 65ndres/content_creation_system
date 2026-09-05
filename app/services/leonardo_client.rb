@@ -79,7 +79,7 @@ class LeonardoClient
 
     model    = normalize_image_model(story.image_generation_model)
     endpoint = image_generation_endpoint(model)
-    payload  = image_generation_payload(model, build_character_seed_prompt(characters), story.story_type)
+    payload  = image_generation_payload(model, build_character_seed_prompt(characters, story.story_type), story.story_type)
     response = generate_asset(payload, endpoint)
     Rails.logger.info("Leonardo generate_character_seed_image story=#{story.id} model=#{model} response=#{response.inspect&.slice(0, 500)}")
 
@@ -398,13 +398,15 @@ class LeonardoClient
   end
   private_class_method :integer_seed
 
-  def self.build_character_seed_prompt(characters)
+  def self.build_character_seed_prompt(characters, story_type)
     lines = characters.map do |character|
       "- #{character['name']}: #{character['physical_description']}"
     end
+    style = story_type&.name.to_s.strip
+    style_prefix = style.present? ? "#{style}. " : ""
 
     <<~PROMPT.strip
-      Character reference sheet. Full body portraits of the main characters standing together, consistent cinematic style, clear faces and clothing.
+      #{style_prefix}Character reference sheet. Full body portraits of the main characters standing together, consistent cinematic style, clear faces and clothing.
 
       #{lines.join("\n")}
     PROMPT

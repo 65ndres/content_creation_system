@@ -43,7 +43,7 @@ class LeonardoClient
 
     StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each do |prompt|
       begin
-        payload  = image_generation_payload(model, prompt, story_type)
+        payload  = image_generation_payload(model, prompt, story_type, seed: story.image_generation_seed)
         response = generate_asset(payload, endpoint)
         Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id} model=#{model} response=#{response.inspect&.slice(0, 500)}")
 
@@ -69,10 +69,66 @@ class LeonardoClient
     end
   end
 
+  def self.generate_character_seed_image(story)
+    characters = StoryJsonNormalizer.normalize_characters(story.characters)
+    if characters.blank?
+      Rails.logger.info("Leonardo generate_character_seed_image story=#{story.id}: no characters, skipping")
+      CreateStoryScenesJob.perform_later(story)
+      return
+    end
+
+    model    = normalize_image_model(story.image_generation_model)
+    endpoint = image_generation_endpoint(model)
+    payload  = image_generation_payload(model, build_character_seed_prompt(characters), story.story_type)
+    response = generate_asset(payload, endpoint)
+    Rails.logger.info("Leonardo generate_character_seed_image story=#{story.id} model=#{model} response=#{response.inspect&.slice(0, 500)}")
+
+    generation_id = extract_generation_id(response)
+    if generation_id.present?
+      CheckCharacterSeedGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(story, generation_id)
+    else
+      Rails.logger.error("Leonardo generate_character_seed_image story=#{story.id}: missing generationId #{response.inspect&.slice(0, 500)}")
+      CreateStoryScenesJob.perform_later(story)
+    end
+  rescue => e
+    Rails.logger.error("Leonardo generate_character_seed_image story=#{story.id}: #{e.message}")
+    CreateStoryScenesJob.perform_later(story)
+  end
+
+  def self.check_character_seed_generation_status(story, generation_id)
+    data    = check_asset_generation_status(generation_id)
+    payload = generation_status_payload(data)
+    status  = generation_status_value(payload)
+    Rails.logger.info("Leonardo character seed status story=#{story.id} gen_id=#{generation_id} status=#{status} seed=#{payload['seed'].inspect}")
+
+    if status == "FAILED"
+      Rails.logger.error("Leonardo character seed generation failed for story #{story.id} gen_id=#{generation_id}")
+      CreateStoryScenesJob.perform_later(story)
+      return
+    end
+
+    if status == "COMPLETE"
+      seed = payload["seed"]
+      if seed.present?
+        story.update!(image_generation_seed: seed.to_s)
+        Rails.logger.info("Leonardo character seed stored story=#{story.id} seed=#{story.image_generation_seed}")
+      else
+        Rails.logger.error("Leonardo character seed missing for story #{story.id} gen_id=#{generation_id}")
+      end
+      CreateStoryScenesJob.perform_later(story)
+      return
+    end
+
+    CheckCharacterSeedGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(story, generation_id)
+  end
+
   def self.check_asset_generation_status(gen_id, api: "v1")
     # Create can be v1 or v2; status is only exposed on GET /v1/generations/{id}.
+    endpoint = "#{GENERATION_ENDPOINT}/#{gen_id}"
     headers = { "authorization" => "Bearer #{ENV['LEONARDO_KEY']}", "Accept" => "application/json" }
-    HTTParty.get("#{GENERATION_ENDPOINT}/#{gen_id}", headers: headers)
+    response = HTTParty.get(endpoint, headers: headers)
+    log_http_call("GET", endpoint, response: response)
+    response
   end
 
   def self.check_scene_images_generation_status(scene)
@@ -171,9 +227,10 @@ class LeonardoClient
       options[:"body"]    = payload.to_json
 
       response = HTTParty.post(endpoint, options)
+      log_http_call("POST", endpoint, body: payload, response: response)
       response
-    rescue
-      Rails.logger.error("Error in generate_asset: #{response.inspect&.slice(0, 500)}")
+    rescue => e
+      Rails.logger.error("Leonardo POST #{endpoint} body=#{payload.to_json} error=#{e.message}")
     end
   end
 
@@ -188,9 +245,11 @@ class LeonardoClient
       options[:"headers"] = headers
       options[:"body"]   = body_hash.to_json
 
-      HTTParty.post(VIDEO_GENERATION_ENDPOINT, options)
+      response = HTTParty.post(VIDEO_GENERATION_ENDPOINT, options)
+      log_http_call("POST", VIDEO_GENERATION_ENDPOINT, body: body_hash, response: response)
+      response
     rescue => e
-      Rails.logger.error("Error in generate_video: #{e.message}")
+      Rails.logger.error("Leonardo POST #{VIDEO_GENERATION_ENDPOINT} body=#{body_hash.to_json} error=#{e.message}")
     end
   end
 
@@ -261,6 +320,19 @@ class LeonardoClient
   end
   private_class_method :truncate_hailuo_prompt
 
+  def self.log_http_call(method, endpoint, body: nil, response: nil)
+    parts = ["Leonardo #{method} #{endpoint}"]
+    parts << "body=#{body.to_json}" if body
+    if response
+      status = response.respond_to?(:code) ? response.code : nil
+      parsed = response.respond_to?(:parsed_response) ? response.parsed_response : response
+      parts << "status=#{status}"
+      parts << "response=#{parsed.inspect}"
+    end
+    Rails.logger.info(parts.join(" "))
+  end
+  private_class_method :log_http_call
+
   def self.truncate_prompt(prompt, max_length)
     return prompt if prompt.length <= max_length
 
@@ -280,23 +352,26 @@ class LeonardoClient
   end
   private_class_method :image_generation_endpoint
 
-  def self.image_generation_payload(model, prompt, story_type)
+  def self.image_generation_payload(model, prompt, story_type, seed: nil)
     model = normalize_image_model(model)
+    seed_value = integer_seed(seed)
     if model == NANO_BANANA_2_MODEL
+      parameters = {
+        "width"          => NANO_BANANA_2_WIDTH,
+        "height"         => NANO_BANANA_2_HEIGHT,
+        "prompt"         => truncate_prompt(prompt.to_s, MAX_NANO_BANANA_PROMPT_LENGTH),
+        "quantity"       => 1,
+        "style_ids"      => [DYNAMIC_STYLE_UUID],
+        "prompt_enhance" => "OFF"
+      }
+      parameters["seed"] = seed_value if seed_value
       {
         "model"      => NANO_BANANA_2_MODEL,
-        "parameters" => {
-          "width"          => NANO_BANANA_2_WIDTH,
-          "height"         => NANO_BANANA_2_HEIGHT,
-          "prompt"         => truncate_prompt(prompt.to_s, MAX_NANO_BANANA_PROMPT_LENGTH),
-          "quantity"       => 1,
-          "style_ids"      => [DYNAMIC_STYLE_UUID],
-          "prompt_enhance" => "OFF"
-        },
+        "parameters" => parameters,
         "public"     => false
       }
     else
-      {
+      payload = {
         "prompt"     => truncate_hailuo_prompt(prompt.to_s),
         "modelId"    => LUCID_ORIGIN_MODEL_ID,
         "width"      => story_type.image_width,
@@ -307,9 +382,34 @@ class LeonardoClient
         "styleUUID"  => DYNAMIC_STYLE_UUID,
         "public"     => false
       }
+      payload["seed"] = seed_value if seed_value
+      payload
     end
   end
   private_class_method :image_generation_payload
+
+  def self.integer_seed(seed)
+    return if seed.blank?
+
+    Integer(seed)
+  rescue ArgumentError, TypeError
+    Rails.logger.error("Leonardo invalid image generation seed #{seed.inspect}")
+    nil
+  end
+  private_class_method :integer_seed
+
+  def self.build_character_seed_prompt(characters)
+    lines = characters.map do |character|
+      "- #{character['name']}: #{character['physical_description']}"
+    end
+
+    <<~PROMPT.strip
+      Character reference sheet. Full body portraits of the main characters standing together, consistent cinematic style, clear faces and clothing.
+
+      #{lines.join("\n")}
+    PROMPT
+  end
+  private_class_method :build_character_seed_prompt
 
   def self.extract_generation_id(response)
     return if response.blank?

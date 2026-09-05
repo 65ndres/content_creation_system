@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_04_184800) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_05_021500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -121,6 +121,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_04_184800) do
     t.string "video_url"
     t.jsonb "characters", default: [], null: false
     t.string "image_generation_model", default: "lucid", null: false
+    t.string "image_generation_seed"
     t.index ["source_id"], name: "index_stories_on_source_id"
     t.index ["story_type_id"], name: "index_stories_on_story_type_id"
   end

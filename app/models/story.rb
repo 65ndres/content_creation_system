@@ -16,7 +16,6 @@ class Story < ApplicationRecord
 
   def create_text_and_scenes
     CreateStoryTextJob.perform_now(self)
-    CreateStoryScenesJob.set(wait: 1.minute).perform_later(self)
   end
 
   def create_text

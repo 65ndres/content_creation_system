@@ -70,13 +70,14 @@ class LeonardoClient
   end
 
   def self.generate_character_seed_image(story)
-    characters = StoryJsonNormalizer.normalize_characters(story.characters)
+    characters = StoryJsonNormalizer.seed_characters(story.characters, story.text)
     if characters.blank?
       Rails.logger.info("Leonardo generate_character_seed_image story=#{story.id}: no characters, skipping")
       CreateStoryScenesJob.perform_later(story)
       return
     end
 
+    Rails.logger.info("Leonardo generate_character_seed_image story=#{story.id} characters=#{characters.map { |c| c['name'] }.join(', ')}")
     model    = normalize_image_model(story.image_generation_model)
     endpoint = image_generation_endpoint(model)
     payload  = image_generation_payload(model, build_character_seed_prompt(characters, story.story_type), story.story_type)
@@ -412,7 +413,8 @@ class LeonardoClient
     style_prefix = style.present? ? "#{style}. " : ""
 
     <<~PROMPT.strip
-      #{style_prefix}Character reference sheet. Full body portraits of the main characters standing together, consistent cinematic style, clear faces and clothing.
+      #{style_prefix}Character reference sheet. Full body portraits of only these characters standing together, consistent cinematic style, clear faces and clothing.
+      Generate only the main character and the two most mentioned supporting characters. Do not include anyone else.
 
       #{lines.join("\n")}
     PROMPT

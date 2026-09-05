@@ -40,16 +40,38 @@ class StoryJsonNormalizer
     end
   end
 
+  def self.seed_characters(characters, text, limit: 3)
+    normalized = normalize_characters(characters)
+    return [] if normalized.blank?
+    return normalized if normalized.size <= limit
+
+    main = normalized.first
+    others = normalized.drop(1).sort_by.with_index do |character, index|
+      [-character_mention_count(character["name"], text.to_s), index]
+    end
+
+    [main, *others.first(limit - 1)]
+  end
+
   def self.character_name_mentioned?(name, haystack)
-    return false if name.blank?
-
-    normalized_haystack = haystack.to_s
-    return true if word_boundary_match?(normalized_haystack, name)
-
-    token = primary_match_token(name)
-    token.present? && word_boundary_match?(normalized_haystack, token)
+    character_mention_count(name, haystack).positive?
   end
   private_class_method :character_name_mentioned?
+
+  def self.character_mention_count(name, haystack)
+    return 0 if name.blank?
+
+    text = haystack.to_s
+    return 0 if text.blank?
+
+    count = text.scan(Regexp.new("\\b#{Regexp.escape(name)}\\b", Regexp::IGNORECASE)).size
+    token = primary_match_token(name)
+    if token.present? && !token.casecmp?(name)
+      count += text.scan(Regexp.new("\\b#{Regexp.escape(token)}\\b", Regexp::IGNORECASE)).size
+    end
+    count
+  end
+  private_class_method :character_mention_count
 
   def self.primary_match_token(name)
     stripped = name.to_s.sub(/\A(?:unnamed|unknown)\s+/i, "")

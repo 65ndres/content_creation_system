@@ -2,11 +2,14 @@ class Scene < ApplicationRecord
   has_one_attached :audio
   belongs_to :story
 
-  after_create :create_video_and_audio
+  after_create_commit :create_video_and_audio
 
   def create_video_and_audio
-    # LeonardoClient.generate_scene_images(self)
-    CreateSceneImagesJob.perform_now(self)
+    if story.leonardo_direct_video?
+      LeonardoCreateSceneVideoJob.perform_now(self)
+    else
+      CreateSceneImagesJob.perform_now(self)
+    end
     CreateSceneAudioJob.perform_now(self)
   end
 

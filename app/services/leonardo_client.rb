@@ -12,6 +12,11 @@ class LeonardoClient
   DEFAULT_HAILUO_DURATION = 6 # 1080p allows 6s only; 768p allows 6 or 10
   MAX_HAILUO_PROMPT_LENGTH = 1500
   MAX_NANO_BANANA_PROMPT_LENGTH = 9999
+  # See https://docs.leonardo.ai/docs/wan-26 — text-to-video, duration 5/10/15, 9:16 720x1280.
+  WAN_VIDEO_MODEL         = "wan-2.6"
+  DEFAULT_WAN_DURATION    = 5
+  WAN_WIDTH               = 720
+  WAN_HEIGHT              = 1280
   # Lucid Origin — current getting-started default. See https://docs.leonardo.ai/docs/getting-started
   LUCID_ORIGIN_MODEL_ID   = "7b592283-e8a7-4c5a-9ba6-d18c31f258b9"
   DYNAMIC_STYLE_UUID      = "111dc692-d470-4eec-b791-3475abac4c46"
@@ -24,6 +29,10 @@ class LeonardoClient
     "lucid-origin"   => DEFAULT_IMAGE_MODEL,
     "nano-banana-2"  => NANO_BANANA_2_MODEL
   }.freeze
+  VIDEO_MODEL_ALIASES     = {
+    "wan-2.6" => WAN_VIDEO_MODEL,
+    "wan-26"  => WAN_VIDEO_MODEL
+  }.freeze
 
   def self.normalize_image_model(model)
     return DEFAULT_IMAGE_MODEL if model.blank?
@@ -31,6 +40,15 @@ class LeonardoClient
     key = model.to_s.strip.downcase.tr("_", "-")
     IMAGE_MODEL_ALIASES.fetch(key) do
       raise ArgumentError, "Unknown image generation model #{model.inspect}. Expected lucid or nano-banana-2."
+    end
+  end
+
+  def self.normalize_video_model(model)
+    return if model.blank?
+
+    key = model.to_s.strip.downcase.tr("_", "-")
+    VIDEO_MODEL_ALIASES.fetch(key) do
+      raise ArgumentError, "Unknown video generation model #{model.inspect}. Expected wan-2.6."
     end
   end
 
@@ -195,33 +213,38 @@ class LeonardoClient
   #   scene.save
   # end
 
-  # def self.check_leonardo_scene_video_generation_status(scene)
-  #   # binding.irb
-  #   gen_id = scene.leonardo_video_gen_id
-  #   return if gen_id.blank?
+  def self.check_leonardo_scene_video_generation_status(scene)
+    gen_id = scene.leonardo_video_gen_id
+    return if gen_id.blank?
 
-  #   data = check_asset_generation_status(gen_id)
-  #   pk   = data["generations_by_pk"]
-  #   status = pk&.dig("status")
+    data    = check_asset_generation_status(gen_id)
+    payload = generation_status_payload(data)
+    status  = generation_status_value(payload)
+    Rails.logger.info("Leonardo scene video status scene=#{scene.id} gen_id=#{gen_id} status=#{status}")
 
-  #   if status == "FAILED"
-  #     Rails.logger.error("Leonardo video generation failed for scene #{scene.id}")
-  #     return
-  #   end
+    if status == "FAILED"
+      Rails.logger.error("Leonardo video generation failed for scene #{scene.id} gen_id=#{gen_id}")
+      return
+    end
 
-  #   if pk.blank? || status != "COMPLETE"
-  #     CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
-  #     return
-  #   end
+    if status != "COMPLETE"
+      CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+      return
+    end
 
-  #   first_image = pk["generated_images"]&.first
-  #   video_url   = first_image&.dig("motionMP4URL") || first_image&.dig("url")
-  #   scene.leonardo_video_url = video_url if video_url.present?
-  #   scene.save
+    video_url = generation_video_url(payload)
+    if video_url.blank?
+      Rails.logger.error("Leonardo video generation complete but missing URL scene=#{scene.id} gen_id=#{gen_id}")
+      return
+    end
 
-  #   # should we somehwere in here check if the all the videos are ready ?
-  # end
-    
+    scene.leonardo_video_url = video_url
+    if scene.video_url.blank? || scene.video_url.to_s.match?(/\Ahttps?:\/\//i)
+      scene.video_url = video_url
+    end
+    scene.save
+  end
+
   def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)
     begin
       headers                   = {}
@@ -260,29 +283,28 @@ class LeonardoClient
     end
   end
 
-  # def self.generate_scene_video(scene)
-  #   story_type = scene.story.story_type
-  #   video_w, video_h, mode = hailuo_video_dimensions(story_type.image_width, story_type.image_height)
-  #   payload    = {
-  #     "model"   => HAILUO_VIDEO_MODEL,
-  #     "public"  => false,
-  #     "parameters" => {
-  #       "prompt"    => build_scene_video_prompt(scene),
-  #       "mode"      => mode,
-  #       "duration"  => DEFAULT_HAILUO_DURATION,
-  #       "width"     => video_w,
-  #       "height"    => video_h
-  #     }
-  #   }
-  #   response = generate_video(payload)
-  #   if response["generate"]
-  #     scene.leonardo_video_gen_id = response["generate"]["generationId"]
-  #     scene.save
-  #     CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
-  #   else
-  #     Rails.logger.error("Error in generate_scene_video scene=#{scene.id}: #{response.inspect&.slice(0, 500)}")
-  #   end
-  # end
+  def self.generate_scene_video(scene)
+    if scene.leonardo_video_url.present? || scene.video_url.present?
+      Rails.logger.warn("generate_scene_video skipped scene=#{scene.id}: video already present")
+      return
+    end
+
+    if scene.leonardo_video_gen_id.present?
+      CheckLeonardoSceneVideoGenerationStatusJob.perform_later(scene)
+      return
+    end
+
+    payload  = wan_video_payload(scene)
+    response = generate_video(payload)
+    generation_id = extract_generation_id(response)
+    if generation_id.present?
+      scene.leonardo_video_gen_id = generation_id
+      scene.save
+      CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+    else
+      Rails.logger.error("Leonardo generate_scene_video scene=#{scene.id}: missing generationId #{response.inspect&.slice(0, 500)}")
+    end
+  end
 
   def self.build_scene_video_prompt(scene)
     base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first.to_s
@@ -395,6 +417,24 @@ class LeonardoClient
   end
   private_class_method :image_generation_payload
 
+  def self.wan_video_payload(scene)
+    parameters = {
+      "prompt"   => build_scene_video_prompt(scene),
+      "duration" => DEFAULT_WAN_DURATION,
+      "width"    => WAN_WIDTH,
+      "height"   => WAN_HEIGHT
+    }
+    seed_value = integer_seed(scene.story.image_generation_seed)
+    parameters["seed"] = seed_value if seed_value
+
+    {
+      "model"      => WAN_VIDEO_MODEL,
+      "public"     => false,
+      "parameters" => parameters
+    }
+  end
+  private_class_method :wan_video_payload
+
   def self.integer_seed(seed)
     return if seed.blank?
 
@@ -453,6 +493,33 @@ class LeonardoClient
     image.respond_to?(:stringify_keys) ? image.stringify_keys : image
   end
   private_class_method :generation_first_image
+
+  def self.generation_video_url(payload)
+    candidates = []
+    first_image = generation_first_image(payload)
+    if first_image.present?
+      candidates.concat(
+        [
+          first_image["motionMP4URL"],
+          first_image["motion_mp4_url"],
+          first_image["url"],
+          first_image["src"]
+        ]
+      )
+    end
+
+    videos = payload["generated_videos"] || payload["videos"] || []
+    Array(videos).each do |video|
+      video = video.respond_to?(:stringify_keys) ? video.stringify_keys : video
+      next unless video.is_a?(Hash)
+
+      candidates.concat([video["url"], video["src"], video["motionMP4URL"], video["motion_mp4_url"]])
+    end
+
+    urls = candidates.map(&:presence).compact
+    urls.find { |url| url.to_s.match?(/\.mp4(\?|$)/i) } || urls.first
+  end
+  private_class_method :generation_video_url
 
   def self.generation_blocked?(status, payload, first_image)
     status == "FAILED" || image_nsfw?(first_image) || prompt_moderated?(payload)

@@ -3,15 +3,20 @@ class Story < ApplicationRecord
   belongs_to :story_type
   has_many   :scenes
 
-  before_validation :normalize_image_generation_model
+  before_validation :normalize_image_generation_model, :normalize_video_generation_model
   after_create :create_text_and_scenes
 
-  def self.start(story_type, source, model: LeonardoClient::DEFAULT_IMAGE_MODEL)
+  def self.start(story_type, source, model: LeonardoClient::DEFAULT_IMAGE_MODEL, video_model: nil)
     create!(
       story_type: story_type,
       source: source,
-      image_generation_model: model
+      image_generation_model: model,
+      video_generation_model: video_model
     )
+  end
+
+  def leonardo_direct_video?
+    LeonardoClient.normalize_video_model(video_generation_model).present?
   end
 
   def create_text_and_scenes
@@ -77,5 +82,9 @@ class Story < ApplicationRecord
 
   def normalize_image_generation_model
     self.image_generation_model = LeonardoClient.normalize_image_model(image_generation_model)
+  end
+
+  def normalize_video_generation_model
+    self.video_generation_model = LeonardoClient.normalize_video_model(video_generation_model)
   end
 end

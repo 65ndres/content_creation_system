@@ -36,12 +36,17 @@ class ElevenlabsClient
     end
 
     file_name = "story-#{scene.story_id}-scene-#{scene.id}-#{rand(10)}.mp3"
+    io        = StringIO.new(body)
+    io.set_encoding(Encoding::BINARY)
+    io.rewind
 
     scene.audio.attach(
-      io:           StringIO.new(body),
+      io:           io,
       filename:     file_name,
-      content_type: "audio/mpeg"
+      content_type: "audio/mpeg",
+      identify:     false
     )
+    body.b
   end
 
   def self.mpeg_audio?(body)

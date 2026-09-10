@@ -2,7 +2,7 @@ require "stringio"
 
 class ElevenlabsClient
 
-  VOICE_ID     = "TX3LPaxmHKxFdv7VOQHJ"
+  VOICE_ID     = "n1PvBOwxb8X6m7tahp2h"
   TTS_ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech/#{VOICE_ID}?output_format=mp3_44100_128"
   MODEL_ID     = "eleven_multilingual_v2"
 

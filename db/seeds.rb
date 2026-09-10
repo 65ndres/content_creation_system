@@ -36,14 +36,15 @@ Then take a sentence to explain why this article is important.
 Then talk about the facts of the article.
 Finalize tell the reader to take action in order to take advantage of the news shared in the article."
 
-story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a vivid, dynamic comic book illustration. The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story.
+story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a vivid, dynamic comic book illustration of the action and setting only. Do not include character physical descriptions, clothing, age, face, hair, or body details. A visual seed is applied later for consistency.
 Please format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of exactly one string. That string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.
 Guidelines for the prompts:
 1. **Comic Book Style Declaration**: Start each prompt with 'Create a vivid, dynamic comic book illustration of...'
-2. **Character and Action Description**: Clearly describe the characters and their actions as depicted in the scene.
+2. **Action Description**: Describe what is happening in the scene. You may use character names, but do not describe how they look.
 3. **Setting/Background**: Include details of the environment or background where the action takes place.
 4. **Mood and Theme**: Reflect the mood and thematic elements of the sentence in the illustration details.
 5. **Visual Elements**: Incorporate specific visual elements that should be highlighted, such as technology, specific emotions, or unique environmental features.
+6. **Length**: Each prompt must be at most 1500 characters. Leonardo rejects or truncates longer prompts.
 The aim is to receive creative, engaging prompts that will inspire detailed and lively illustrations, encapsulating the essence of the story through the lens of comic book art.
 Here's the story I want to use:"
 
@@ -154,9 +155,9 @@ conspiracy_story_type.save
 dark_fact_story_type = StoryType.new
 dark_fact_story_type.name = "Dark Fact"
 dark_fact_story_type.story_prompt_text = "Read the story above.
-You're a mystery story teller. Let's create a 300 word factual review of the story where you will
-explain with detail the timeline of the story, you will explain the why, what, when and where.
-To finalize ask the reader to take action by subscribing to the channel and to leave a comment saying whether they still view our government the same."
+You're a mystery story teller. Let's create a 500 word factual review of the story where you will
+explain with detail the timeline of the story, you will explain the what, when and where.
+Ensure the explain in detail how the story how it ends."
 
 dark_fact_story_type.scenes_json_prompts = "I have a story for which I need to generate AI image generation prompts. Each prompt should be designed as a dark, obscure comic book illustration. The prompts must include an overall description, character actions, character appearances, and the setting/background, tailored to each sentence in the story.
 Format the results as a JSON object containing an array called 'pairs'. Each object within the array should have two keys: 'original', with the original sentence from the story, and 'aiImagePrompts', which contains an array of exactly one string. That string should be a detailed prompt for generating an image in a comic book style, focusing on the narrative content of the sentence it corresponds to.

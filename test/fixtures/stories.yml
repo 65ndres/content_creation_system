@@ -2,10 +2,10 @@
 
 one:
   text: MyText
-  story_type: 1
+  story_type: one
   source: one
 
 two:
   text: MyText
-  story_type: 1
+  story_type: one
   source: two

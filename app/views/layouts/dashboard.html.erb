@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <%= csrf_meta_tags %>
+    <title><%= content_for?(:title) ? yield(:title) : "Stories" %> · Studio</title>
+    <link rel="stylesheet" href="/dashboard.css">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail">
+        <p class="mark">Studio</p>
+        <nav class="tabs">
+          <%= link_to "Stories", stories_path, class: "tab #{'is-active' if action_name.in?(%w[index show])}" %>
+          <%= link_to "New story", new_story_path, class: "tab #{'is-active' if action_name.in?(%w[new create])}" %>
+          <%= link_to "New source", new_source_path, class: "tab #{'is-active' if action_name == 'new_source'}" %>
+          <%= link_to "New story type", new_story_type_path, class: "tab #{'is-active' if action_name == 'new_story_type'}" %>
+        </nav>
+      </aside>
+
+      <main class="stage">
+        <%= yield %>
+      </main>
+    </div>
+    <script src="/dashboard.js" defer></script>
+  </body>
+</html>

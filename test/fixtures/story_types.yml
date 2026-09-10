@@ -5,9 +5,9 @@ one:
   story_prompt_text: MyText
   scenes_json_prompts: MyText
   output_width: 1
-  output_high: 1
+  output_height: 1
   image_width: 1
-  image_high: 1
+  image_height: 1
   scene_text_min_chars: 70
   scene_text_max_chars: 100
 
@@ -16,8 +16,8 @@ two:
   story_prompt_text: MyText
   scenes_json_prompts: MyText
   output_width: 1
-  output_high: 1
+  output_height: 1
   image_width: 1
-  image_high: 1
+  image_height: 1
   scene_text_min_chars: 70
   scene_text_max_chars: 100

@@ -1,0 +1,35 @@
+<% content_for :title, "Stories" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Library</p>
+    <h1>Stories</h1>
+  </div>
+  <%= link_to "New story", new_story_path, class: "btn btn-primary" %>
+</header>
+
+<% if @stories.empty? %>
+  <section class="empty">
+    <p>No stories yet.</p>
+    <p class="muted">Create a source and a story type, then open New story.</p>
+  </section>
+<% else %>
+  <ul class="story-list">
+    <% @stories.each do |story| %>
+      <li>
+        <%= link_to story_path(story), class: "story-row" do %>
+          <span class="story-id">#<%= story.id %></span>
+          <span class="story-body">
+            <strong><%= story.story_type&.name.presence || "Untitled" %></strong>
+            <span class="muted"><%= truncate(story.text.to_s.presence || story.source&.text.to_s, length: 120) %></span>
+          </span>
+          <span class="meta">
+            <span class="pill"><%= story_status(story) %></span>
+            <span class="muted"><%= story.scenes.size %> scenes</span>
+            <time datetime="<%= story.created_at.iso8601 %>"><%= story.created_at.strftime("%b %-d, %Y") %></time>
+          </span>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

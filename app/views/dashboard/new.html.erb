@@ -1,0 +1,53 @@
+<% content_for :title, "New story" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Create</p>
+    <h1>New story</h1>
+  </div>
+</header>
+
+<% if @story_types.empty? || @sources.empty? %>
+  <section class="empty">
+    <p>A story needs one source and one story type.</p>
+    <p class="muted">
+      <%= link_to "Create a source", new_source_path %>
+      and
+      <%= link_to "create a story type", new_story_type_path %>
+      first.
+    </p>
+  </section>
+<% else %>
+  <%= form_with model: @story, url: create_story_path, method: :post, local: true, class: "composer" do |form| %>
+    <% if @story.errors.any? %>
+      <p class="is-error"><%= @story.errors.full_messages.to_sentence %></p>
+    <% end %>
+
+    <div class="form-grid">
+      <label>
+        <span class="field-label">Story type</span>
+        <%= form.select :story_type_id, options_from_collection_for_select(@story_types, :id, :name, @story.story_type_id), { prompt: "Choose one" }, class: "select", required: true %>
+      </label>
+
+      <label>
+        <span class="field-label">Source</span>
+        <%= form.select :source_id, options_from_collection_for_select(@sources, :id, :dashboard_label, @story.source_id), { prompt: "Choose one" }, class: "select", required: true %>
+      </label>
+
+      <label>
+        <span class="field-label">Image model</span>
+        <%= form.select :image_generation_model, @image_models.map { |value, label| [ label, value ] }, {}, class: "select" %>
+      </label>
+
+      <label>
+        <span class="field-label">Video model</span>
+        <%= form.select :video_generation_model, ([ [ "None (stills + motion)", "" ] ] + @video_models.map { |value, label| [ label, value ] }), {}, class: "select" %>
+      </label>
+    </div>
+
+    <div class="composer-bar">
+      <p class="muted">Generation starts in the background after you create the story.</p>
+      <%= form.submit "Create story", class: "btn btn-primary" %>
+    </div>
+  <% end %>
+<% end %>

@@ -5,6 +5,42 @@ class ChatGPTClient
   RESPONSES_URL = 'https://api.openai.com/v1/responses'.freeze
   CHAT_MODEL      = ENV.fetch('OPENAI_CHAT_MODEL', 'gpt-5.5').freeze
 
+  def self.generate_source_text(prompt)
+    responses_request(prompt.to_s)
+  end
+
+  STORY_TYPE_GENERATION_PROMPT = <<~PROMPT.squish
+    Create a reusable story type for a short-form video pipeline.
+    Return ONLY valid JSON with no markdown fences or commentary. Use this structure:
+    {
+      "name": "short display name",
+      "story_prompt_text": "instructions that take a source article and write voice-over narration",
+      "scenes_json_prompts": "instructions that take that narration and return JSON image prompts"
+    }
+    scenes_json_prompts must tell the model to return JSON with a key "pairs", an array of objects.
+    Each object must have "original" (a narration sentence) and "aiImagePrompts" (an array of exactly one prompt string).
+    Those prompt strings must stay under 1500 characters and describe action, setting, and mood only — no character physical descriptions.
+    User request:
+  PROMPT
+
+  def self.generate_story_type_draft(prompt)
+    raw = ""
+    raw = responses_request("#{STORY_TYPE_GENERATION_PROMPT}\n#{prompt}")
+    data = JSON.parse(raw.to_s.gsub("```json", "").gsub("```", "").strip)
+    data = {} unless data.is_a?(Hash)
+    {
+      "name" => data["name"].to_s,
+      "story_prompt_text" => data["story_prompt_text"].to_s,
+      "scenes_json_prompts" => data["scenes_json_prompts"].to_s
+    }
+  rescue JSON::ParserError
+    {
+      "name" => "",
+      "story_prompt_text" => raw.to_s,
+      "scenes_json_prompts" => ""
+    }
+  end
+
   def self.generate_story_text(story)
     input = story.source.text.to_s + story.story_type.story_prompt_text.to_s
     responses_request(input)
@@ -28,7 +64,7 @@ class ChatGPTClient
   end
 
   SOFTEN_IMAGE_PROMPTS = <<~PROMPT.squish
-    Rewrite each AI image generation prompt to be less violent, less explicit, and less gory.
+    Rewrite each AI image and video generation prompt using the instruction below.
     Keep the same characters, setting, narrative, and visual style.
     Do not add commentary or markdown.
     Return ONLY valid JSON with this structure:
@@ -36,15 +72,20 @@ class ChatGPTClient
     Use the same number of prompts, in the same order.
   PROMPT
 
-  def self.soften_image_prompts(prompts)
+  DEFAULT_PROMPT_REWRITE_INSTRUCTION = "make this scene less violent, and remove blood"
+
+  def self.soften_image_prompts(prompts, instruction: nil)
     prompts = StoryJsonNormalizer.normalize_ai_image_prompts(prompts)
     return [] if prompts.blank?
 
+    instruction = instruction.to_s.strip.presence || DEFAULT_PROMPT_REWRITE_INSTRUCTION
     numbered = prompts.each_with_index.map { |prompt, i| "#{i + 1}. #{prompt}" }.join("\n\n")
-    response = responses_request("#{SOFTEN_IMAGE_PROMPTS}\n\nPrompts:\n#{numbered}")
+    response = responses_request(
+      "#{SOFTEN_IMAGE_PROMPTS}\n\nInstruction: #{instruction}\n\nPrompts:\n#{numbered}"
+    )
     data     = JSON.parse(response.gsub("```json", "").gsub("```", "").strip)
     rewritten = StoryJsonNormalizer.normalize_ai_image_prompts(data["prompts"] || data)
-    Rails.logger.info("ChatGPTClient soften_image_prompts count=#{rewritten.size}")
+    Rails.logger.info("ChatGPTClient soften_image_prompts count=#{rewritten.size} instruction=#{instruction}")
     rewritten
   rescue JSON::ParserError, StandardError => e
     Rails.logger.error("ChatGPTClient soften_image_prompts failed: #{e.message}")
@@ -54,8 +95,11 @@ class ChatGPTClient
   def self.generate_scene_images_prompts(story)
     story_type = story.story_type
     input = story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s
-    input += character_reference_block(story) if story.characters.present?
+    if story.characters.present? && !story.leonardo_direct_video?
+      input += character_reference_block(story)
+    end
     input += scene_text_length_block(story_type)
+    input += leonardo_video_prompt_block if story.leonardo_direct_video?
     text  = responses_request(input)
     Rails.logger.info("ChatGPTClient scene prompts response story=#{story.id} body=#{text&.slice(0, 500)}")
     text
@@ -70,6 +114,14 @@ class ChatGPTClient
       lines.join("\n")
   end
   private_class_method :character_reference_block
+
+  def self.leonardo_video_prompt_block
+    "\n\nLeonardo video prompt rules: Each `aiImagePrompts` string must be at most " \
+      "#{LeonardoClient::MAX_HAILUO_PROMPT_LENGTH} characters. Name characters only if needed. " \
+      "Do not include physical descriptions, clothing, age, face, hair, or body details. " \
+      "Describe only the action, setting, mood, and visual style."
+  end
+  private_class_method :leonardo_video_prompt_block
 
   def self.scene_text_length_block(story_type)
     min_chars = story_type.scene_text_min_chars

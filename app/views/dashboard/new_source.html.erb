@@ -1,0 +1,40 @@
+<% content_for :title, "New source" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Create</p>
+    <h1>New source</h1>
+  </div>
+</header>
+
+<section
+  class="composer"
+  data-composer="source"
+  data-generate-url="<%= generate_source_path %>"
+  data-save-url="<%= sources_path %>"
+>
+  <label class="field-label" for="source-prompt">Prompt</label>
+  <textarea
+    id="source-prompt"
+    class="box"
+    name="prompt"
+    rows="12"
+    placeholder="Type here. This text is sent to ChatGPT and used as the source."
+    autofocus
+    data-prompt
+  ></textarea>
+
+  <div class="composer-bar">
+    <p class="muted" data-status>ChatGPT will write the source from whatever you type above.</p>
+    <button type="button" class="btn btn-primary" data-generate>Send to ChatGPT</button>
+  </div>
+
+  <div class="result" data-result hidden>
+    <label class="field-label" for="source-text">Source</label>
+    <textarea id="source-text" class="box" name="text" rows="16" data-source-text></textarea>
+    <div class="composer-bar">
+      <p class="muted" data-save-status></p>
+      <button type="button" class="btn" data-save>Save as source</button>
+    </div>
+  </div>
+</section>

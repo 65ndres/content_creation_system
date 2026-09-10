@@ -1,0 +1,66 @@
+<% content_for :title, "New story type" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Create</p>
+    <h1>New story type</h1>
+  </div>
+</header>
+
+<section
+  class="composer"
+  data-composer="story-type"
+  data-generate-url="<%= generate_story_type_path %>"
+  data-save-url="<%= story_types_path %>"
+>
+  <label class="field-label" for="story-type-prompt">Prompt</label>
+  <textarea
+    id="story-type-prompt"
+    class="box"
+    name="prompt"
+    rows="12"
+    placeholder="Describe the story type. ChatGPT will draft the narration prompt and the scene-image prompt."
+    autofocus
+    data-prompt
+  ></textarea>
+
+  <div class="composer-bar">
+    <p class="muted" data-status>ChatGPT will draft the story type from whatever you type above.</p>
+    <button type="button" class="btn btn-primary" data-generate>Send to ChatGPT</button>
+  </div>
+
+  <div class="result" data-result hidden>
+    <label class="field-label" for="story-type-name">Name</label>
+    <input id="story-type-name" class="select" type="text" data-name>
+
+    <label class="field-label" for="story-prompt-text">Story prompt</label>
+    <textarea id="story-prompt-text" class="box" rows="10" data-story-prompt></textarea>
+
+    <label class="field-label" for="scenes-json-prompts">Scenes prompt</label>
+    <textarea id="scenes-json-prompts" class="box" rows="10" data-scenes-prompt></textarea>
+
+    <div class="form-grid dim-grid">
+      <label>
+        <span class="field-label">Image width</span>
+        <input class="select" type="number" min="1" value="1024" data-image-width>
+      </label>
+      <label>
+        <span class="field-label">Image height</span>
+        <input class="select" type="number" min="1" value="576" data-image-height>
+      </label>
+      <label>
+        <span class="field-label">Output width</span>
+        <input class="select" type="number" min="1" value="1920" data-output-width>
+      </label>
+      <label>
+        <span class="field-label">Output height</span>
+        <input class="select" type="number" min="1" value="1080" data-output-height>
+      </label>
+    </div>
+
+    <div class="composer-bar">
+      <p class="muted" data-save-status></p>
+      <button type="button" class="btn" data-save>Save as story type</button>
+    </div>
+  </div>
+</section>

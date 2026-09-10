@@ -1,9 +1,11 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  scene: MyText
-  ai_image_prompt: MyText
+  text: MyText
+  ai_image_prompt: []
+  story: one
 
 two:
-  scene: MyText
-  ai_image_prompt: MyText
+  text: MyText
+  ai_image_prompt: []
+  story: two

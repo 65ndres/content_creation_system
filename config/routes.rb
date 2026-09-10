@@ -20,6 +20,19 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  # Defines the root path route ("/")
-  # root "posts#index"
+  root "dashboard#index"
+
+  get "stories", to: "dashboard#index", as: :stories
+  get "stories/new", to: "dashboard#new", as: :new_story
+  post "stories", to: "dashboard#create", as: :create_story
+  get "stories/:id", to: "dashboard#show", as: :story
+  post "stories/:story_id/scenes/:id/rewrite_prompt", to: "scenes#rewrite_prompt", as: :rewrite_story_scene
+
+  get "sources/new", to: "dashboard#new_source", as: :new_source
+  post "sources/generate", to: "sources#generate", as: :generate_source
+  resources :sources, only: [ :create ]
+
+  get "story_types/new", to: "dashboard#new_story_type", as: :new_story_type
+  post "story_types/generate", to: "story_types#generate", as: :generate_story_type
+  resources :story_types, only: [ :create ]
 end

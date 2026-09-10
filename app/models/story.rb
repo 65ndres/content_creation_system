@@ -3,8 +3,10 @@ class Story < ApplicationRecord
   belongs_to :story_type
   has_many   :scenes
 
+  attr_accessor :defer_pipeline
+
   before_validation :normalize_image_generation_model, :normalize_video_generation_model
-  after_create :create_text_and_scenes
+  after_create :create_text_and_scenes, unless: :defer_pipeline
 
   def self.start(story_type, source, model: LeonardoClient::DEFAULT_IMAGE_MODEL, video_model: nil)
     create!(

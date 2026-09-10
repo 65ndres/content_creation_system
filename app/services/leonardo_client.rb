@@ -33,6 +33,15 @@ class LeonardoClient
     "wan-2.6" => WAN_VIDEO_MODEL,
     "wan-26"  => WAN_VIDEO_MODEL
   }.freeze
+  IMAGE_MODEL_CHOICES     = [
+    [ DEFAULT_IMAGE_MODEL, "Lucid Origin" ],
+    [ NANO_BANANA_2_MODEL, "Nano Banana 2" ]
+  ].freeze
+  VIDEO_MODEL_CHOICES     = [
+    [ WAN_VIDEO_MODEL, "Wan 2.6" ]
+  ].freeze
+  MAX_PROMPT_REWRITES = 3
+  DEFAULT_PROMPT_REWRITE_INSTRUCTION = "make this scene less violent, and remove blood"
 
   def self.normalize_image_model(model)
     return DEFAULT_IMAGE_MODEL if model.blank?
@@ -82,6 +91,8 @@ class LeonardoClient
     scene.save
     if scene.images_data.any? { |image_data| image_data["leonardo_image_gen_id"].present? }
       CheckSceneImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+    elsif rewrite_blocked_scene_prompts(scene)
+      Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id}: rewrote prompts after Leonardo rejected them")
     else
       Rails.logger.error("Leonardo generate_scene_images scene=#{scene.id}: no generation ids stored")
     end
@@ -220,9 +231,20 @@ class LeonardoClient
     data    = check_asset_generation_status(gen_id)
     payload = generation_status_payload(data)
     status  = generation_status_value(payload)
-    Rails.logger.info("Leonardo scene video status scene=#{scene.id} gen_id=#{gen_id} status=#{status}")
+    first_image = generation_first_image(payload)
+    video_url = generation_video_url(payload)
+    Rails.logger.info("Leonardo scene video status scene=#{scene.id} gen_id=#{gen_id} status=#{status} video_url=#{video_url.present?}")
 
-    if status == "FAILED"
+    if video_url.present?
+      assign_scene_video_url(scene, video_url)
+      return
+    end
+
+    if status == "FAILED" || generation_blocked?(status, payload, first_image)
+      if rewrite_blocked_scene_prompts(scene)
+        return
+      end
+
       Rails.logger.error("Leonardo video generation failed for scene #{scene.id} gen_id=#{gen_id}")
       return
     end
@@ -232,18 +254,18 @@ class LeonardoClient
       return
     end
 
-    video_url = generation_video_url(payload)
-    if video_url.blank?
-      Rails.logger.error("Leonardo video generation complete but missing URL scene=#{scene.id} gen_id=#{gen_id}")
-      return
-    end
+    Rails.logger.warn("Leonardo video generation complete but missing URL scene=#{scene.id} gen_id=#{gen_id}, polling again")
+    CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+  end
 
+  def self.assign_scene_video_url(scene, video_url)
     scene.leonardo_video_url = video_url
     if scene.video_url.blank? || scene.video_url.to_s.match?(/\Ahttps?:\/\//i)
       scene.video_url = video_url
     end
     scene.save
   end
+  private_class_method :assign_scene_video_url
 
   def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)
     begin
@@ -296,11 +318,20 @@ class LeonardoClient
 
     payload  = wan_video_payload(scene)
     response = generate_video(payload)
+
+    if rate_limited_response?(response)
+      Rails.logger.warn("Leonardo generate_scene_video scene=#{scene.id}: rate limited, retrying later")
+      LeonardoCreateSceneVideoJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+      return
+    end
+
     generation_id = extract_generation_id(response)
     if generation_id.present?
       scene.leonardo_video_gen_id = generation_id
       scene.save
       CheckLeonardoSceneVideoGenerationStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+    elsif rewrite_blocked_scene_prompts(scene)
+      Rails.logger.info("Leonardo generate_scene_video scene=#{scene.id}: rewrote prompts after Leonardo rejected them")
     else
       Rails.logger.error("Leonardo generate_scene_video scene=#{scene.id}: missing generationId #{response.inspect&.slice(0, 500)}")
     end
@@ -308,6 +339,8 @@ class LeonardoClient
 
   def self.build_scene_video_prompt(scene)
     base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first.to_s
+    return truncate_hailuo_prompt(base_prompt) if scene.story.leonardo_direct_video?
+
     characters  = StoryJsonNormalizer.filter_characters_in_text(
       scene.story.characters,
       base_prompt,
@@ -335,6 +368,14 @@ class LeonardoClient
     truncate_hailuo_prompt(prompt)
   end
   private_class_method :build_scene_video_prompt
+
+  def self.scene_generation_prompt(scene)
+    if scene.story.leonardo_direct_video?
+      build_scene_video_prompt(scene)
+    else
+      StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).join("\n\n")
+    end
+  end
 
   def self.description_embedded_in_prompt?(base_prompt, description)
     snippet = description.to_s.strip.slice(0, 80)
@@ -462,13 +503,33 @@ class LeonardoClient
   private_class_method :build_character_seed_prompt
 
   def self.extract_generation_id(response)
-    return if response.blank?
+    parsed = leonardo_parsed(response)
+    return if parsed.blank?
 
-    response.dig("sdGenerationJob", "generationId") ||
-      response["generationId"] ||
-      response.dig("generate", "generationId")
+    parsed.dig("sdGenerationJob", "generationId") ||
+      parsed["generationId"] ||
+      parsed.dig("generate", "generationId")
   end
   private_class_method :extract_generation_id
+
+  def self.leonardo_parsed(response)
+    return {} if response.blank?
+
+    body = response.respond_to?(:parsed_response) ? response.parsed_response : response
+    body = body.first if body.is_a?(Array)
+    return {} unless body.is_a?(Hash)
+
+    body.stringify_keys
+  end
+  private_class_method :leonardo_parsed
+
+  def self.rate_limited_response?(response)
+    parsed = leonardo_parsed(response)
+    code = parsed.dig("extensions", "code").to_s
+    message = [ parsed["error"], parsed["message"] ].compact.join(" ")
+    code == "RATE_LIMIT_EXCEEDED" || message.match?(/too many pending|rate limit/i)
+  end
+  private_class_method :rate_limited_response?
 
   def self.generation_status_payload(data)
     return {} if data.blank?
@@ -544,9 +605,9 @@ class LeonardoClient
   end
   private_class_method :prompt_moderated?
 
-  def self.rewrite_blocked_scene_prompts(scene)
-    if scene.image_prompt_rewrite_count.to_i >= 1
-      Rails.logger.info("Leonardo scene=#{scene.id}: prompt already rewritten, not retrying")
+  def self.rewrite_blocked_scene_prompts(scene, instruction: nil, force: false)
+    if !force && scene.image_prompt_rewrite_count.to_i >= MAX_PROMPT_REWRITES
+      Rails.logger.info("Leonardo scene=#{scene.id}: prompt rewrite limit reached, not retrying")
       return false
     end
 
@@ -556,7 +617,8 @@ class LeonardoClient
       return false
     end
 
-    softened = ChatGPTClient.soften_image_prompts(original)
+    instruction = instruction.to_s.strip.presence || DEFAULT_PROMPT_REWRITE_INSTRUCTION
+    softened = ChatGPTClient.soften_image_prompts(original, instruction: instruction)
     if softened.blank? || softened.size != original.size
       Rails.logger.error("Leonardo scene=#{scene.id}: soften_image_prompts returned unexpected prompts")
       return false
@@ -564,16 +626,21 @@ class LeonardoClient
 
     scene.ai_image_prompt = softened
     scene.images_data = []
+    scene.leonardo_video_gen_id = nil
     scene.image_prompt_rewrite_count = scene.image_prompt_rewrite_count.to_i + 1
     scene.save
-    Rails.logger.info("Leonardo scene=#{scene.id}: softened prompts and requeued image generation")
-    CreateSceneImagesJob.perform_later(scene)
+    Rails.logger.info("Leonardo scene=#{scene.id}: softened prompts instruction=#{instruction.inspect} and requeued generation")
+
+    if scene.story.leonardo_direct_video?
+      LeonardoCreateSceneVideoJob.perform_later(scene)
+    else
+      CreateSceneImagesJob.perform_later(scene)
+    end
     true
   rescue => e
     Rails.logger.error("Leonardo scene=#{scene.id}: failed to soften prompts #{e.message}")
     false
   end
-  private_class_method :rewrite_blocked_scene_prompts
 
   # Hailuo 2.3 text-to-video uses fixed presets per resolution (see dimension tables in docs).
   # Returns [width, height, mode] where mode is RESOLUTION_1080 or RESOLUTION_768.

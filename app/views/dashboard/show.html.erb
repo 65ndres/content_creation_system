@@ -1,4 +1,8 @@
 <% content_for :title, "Story ##{@story.id}" %>
+<% total = @scenes.size %>
+<% completed = @scenes.count(&:merged?) %>
+<% needs_leonardo = @scenes.any? { |scene| !scene.video_ready? && !scene.leonardo_generation_in_flight? } %>
+<% all_scenes_complete = @scenes.any? && completed == total %>
 
 <header class="page-head">
   <div>
@@ -9,9 +13,36 @@
 </header>
 
 <section class="summary">
-  <p class="pill"><%= story_status(@story) %></p>
-  <% if @story.video_url.present? %>
-    <video class="final-video" controls src="<%= @story.video_url %>"></video>
+  <div class="summary-row">
+    <p class="pill"><%= story_status(@story) %></p>
+    <% unless @scenes.empty? %>
+      <p class="pill"><%= completed %> / <%= total %> scenes complete</p>
+    <% end %>
+    <% if needs_leonardo %>
+      <%= button_to "Generate all remaining videos", generate_story_videos_path(@story), method: :post, class: "btn" %>
+    <% end %>
+    <% unless @scenes.empty? %>
+      <%= button_to(
+            @story.video_url.present? ? "Recreate story video" : "Create story video",
+            create_story_video_path(@story),
+            method: :post,
+            class: "btn btn-primary",
+            disabled: !all_scenes_complete
+          ) %>
+    <% end %>
+  </div>
+  <% if @story.character_seed_image_url.present? || @story.video_url.present? %>
+    <div class="story-media">
+      <% if @story.character_seed_image_url.present? %>
+        <figure>
+          <figcaption>Seed image</figcaption>
+          <img class="seed-image" src="<%= @story.character_seed_image_url %>" alt="Character seed for story #<%= @story.id %>">
+        </figure>
+      <% end %>
+      <% if @story.video_url.present? %>
+        <video class="final-video" controls src="<%= @story.video_url %>"></video>
+      <% end %>
+    </div>
   <% end %>
   <% if @story.text.present? %>
     <p class="story-text"><%= simple_format(@story.text) %></p>
@@ -27,66 +58,94 @@
     <% @scenes.each_with_index do |scene, index| %>
       <% audio_url = scene_audio_url(scene) %>
       <% video_url = scene_video_url(scene) %>
-      <li class="scene">
-        <header class="scene-head">
-          <h2>Scene <%= index + 1 %></h2>
-          <span class="muted">#<%= scene.id %></span>
-        </header>
+      <% prompt_text = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).join("\n\n") %>
+      <li>
+        <details class="scene" <%= "open" unless scene.merged? %>>
+          <summary class="scene-summary">
+            <span>Scene <%= index + 1 %></span>
+            <span class="muted">#<%= scene.id %></span>
+            <span class="pill"><%= scene.generation_status_label %></span>
+          </summary>
 
-        <% if scene.text.present? %>
-          <p><%= scene.text %></p>
-        <% end %>
-
-        <% prompts = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt) %>
-        <% if prompts.present? %>
-          <p class="field-label">Leonardo prompt</p>
-          <pre class="muted scene-prompt"><%= LeonardoClient.scene_generation_prompt(scene) %></pre>
-        <% end %>
-
-        <% if video_url.blank? %>
-          <%= form_with url: rewrite_story_scene_path(@story, scene), method: :post, class: "rewrite-form" do %>
-            <label class="field-label" for="instruction-<%= scene.id %>">If Leonardo rejected this prompt</label>
-            <div class="rewrite-row">
-              <input
-                class="select"
-                type="text"
-                name="instruction"
-                id="instruction-<%= scene.id %>"
-                value="make this scene less violent, and remove blood"
-              >
-              <button class="btn" type="submit">Rewrite and retry</button>
+          <%= form_with url: regenerate_story_scene_audio_path(@story, scene), method: :post, class: "rewrite-form" do %>
+            <label class="field-label" for="text-<%= scene.id %>">Narration</label>
+            <textarea class="box prompt-box" name="text" id="text-<%= scene.id %>"><%= scene.text %></textarea>
+            <div class="scene-actions">
+              <button class="btn" type="submit">Regenerate audio</button>
             </div>
           <% end %>
-        <% end %>
 
-        <div class="media-grid">
-          <figure>
-            <figcaption>Video</figcaption>
-            <% if video_url.present? %>
-              <video controls src="<%= video_url %>"></video>
-            <% else %>
-              <p class="placeholder">Not ready</p>
+          <% if scene.merged? %>
+            <%= form_with url: regenerate_story_scene_video_path(@story, scene), method: :post, class: "rewrite-form" do %>
+              <label class="field-label" for="prompt-<%= scene.id %>">Leonardo prompt</label>
+              <textarea class="box prompt-box" name="prompt" id="prompt-<%= scene.id %>"><%= prompt_text %></textarea>
+              <div class="scene-actions">
+                <button class="btn" type="submit">Regenerate video</button>
+              </div>
             <% end %>
-          </figure>
+          <% elsif scene.leonardo_generation_in_flight? %>
+            <% if prompt_text.present? %>
+              <p class="field-label">Leonardo prompt</p>
+              <pre class="muted scene-prompt"><%= LeonardoClient.scene_generation_prompt(scene) %></pre>
+            <% end %>
+            <div class="scene-actions">
+              <p class="muted generating">Generating…</p>
+            </div>
+          <% else %>
+            <%= form_with url: generate_story_scene_video_path(@story, scene), method: :post, class: "rewrite-form" do %>
+              <label class="field-label" for="prompt-<%= scene.id %>">Leonardo prompt</label>
+              <textarea class="box prompt-box" name="prompt" id="prompt-<%= scene.id %>"><%= prompt_text %></textarea>
+              <div class="scene-actions">
+                <button class="btn" type="submit">Generate video</button>
+              </div>
+            <% end %>
+          <% end %>
 
-          <figure>
-            <figcaption>Audio</figcaption>
-            <% if audio_url.present? %>
-              <audio controls src="<%= audio_url %>"></audio>
-            <% else %>
-              <p class="placeholder">Not ready</p>
+          <% if video_url.blank? && !scene.merged? %>
+            <%= form_with url: rewrite_story_scene_path(@story, scene), method: :post, class: "rewrite-form" do %>
+              <label class="field-label" for="instruction-<%= scene.id %>">If Leonardo rejected this prompt</label>
+              <div class="rewrite-row">
+                <input
+                  class="select"
+                  type="text"
+                  name="instruction"
+                  id="instruction-<%= scene.id %>"
+                  value="make this scene less violent, and remove blood"
+                >
+                <button class="btn" type="submit">Rewrite and retry</button>
+              </div>
             <% end %>
-          </figure>
+          <% end %>
 
-          <figure>
-            <figcaption>Merged audio + video</figcaption>
-            <% if scene.merged_audio_video_url.present? %>
-              <video controls src="<%= scene.merged_audio_video_url %>"></video>
-            <% else %>
-              <p class="placeholder">Not ready</p>
-            <% end %>
-          </figure>
-        </div>
+          <div class="media-grid">
+            <figure>
+              <figcaption>Video</figcaption>
+              <% if video_url.present? %>
+                <video controls src="<%= video_url %>"></video>
+              <% else %>
+                <p class="placeholder">Not ready</p>
+              <% end %>
+            </figure>
+
+            <figure>
+              <figcaption>Audio</figcaption>
+              <% if audio_url.present? %>
+                <audio controls src="<%= audio_url %>"></audio>
+              <% else %>
+                <p class="placeholder">Not ready</p>
+              <% end %>
+            </figure>
+
+            <figure>
+              <figcaption>Merged audio + video</figcaption>
+              <% if scene.merged_audio_video_url.present? %>
+                <video controls src="<%= scene.merged_audio_video_url %>"></video>
+              <% else %>
+                <p class="placeholder">Not ready</p>
+              <% end %>
+            </figure>
+          </div>
+        </details>
       </li>
     <% end %>
   </ol>

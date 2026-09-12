@@ -65,9 +65,7 @@ class Story < ApplicationRecord
   end
 
   def scenes_audio_video_merge_completed?
-    self.scenes.reduce(true) do |is_completed, scene|
-      is_completed && scene.merged_audio_video_url.present?
-    end
+    scenes.any? && scenes.all? { |scene| scene.merged_audio_video_url.present? }
   end
 
   def scenes_audio_files_completed?

@@ -102,7 +102,7 @@ h2 {
 
 .btn:disabled {
   opacity: 0.55;
-  cursor: wait;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -131,6 +131,55 @@ h2 {
   background: var(--panel);
   border: 1px solid var(--line);
   padding: 1.25rem;
+}
+
+.summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.summary-row .pill,
+.summary-row .btn {
+  margin: 0;
+}
+
+.scene-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scene-summary .pill {
+  margin-left: auto;
+}
+
+.scene-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.summary-row form,
+.scene-actions form {
+  margin: 0;
+}
+
+details[open] > .scene-summary {
+  margin-bottom: 1rem;
+}
+
+.generating {
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
 }
 
 .field-label {
@@ -278,6 +327,11 @@ input.select:focus {
   overflow: visible;
 }
 
+.box.prompt-box {
+  min-height: 8rem;
+  margin: 0.35rem 0 0;
+}
+
 .rewrite-form {
   margin: 1rem 0;
 }
@@ -321,6 +375,29 @@ audio,
   border: 1px dashed var(--line);
   color: var(--muted);
   text-align: center;
+}
+
+.story-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.story-media figure {
+  flex: 0 1 280px;
+}
+
+.story-media .final-video {
+  flex: 1 1 320px;
+}
+
+.seed-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #111;
 }
 
 .story-text {

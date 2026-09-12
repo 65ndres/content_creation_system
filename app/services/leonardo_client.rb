@@ -138,10 +138,17 @@ class LeonardoClient
     end
 
     if status == "COMPLETE"
+      first_image = generation_first_image(payload)
+      image_url = generation_image_url(first_image)
       seed = payload["seed"]
-      if seed.present?
-        story.update!(image_generation_seed: seed.to_s)
-        Rails.logger.info("Leonardo character seed stored story=#{story.id} seed=#{story.image_generation_seed}")
+      attrs = {}
+      attrs[:image_generation_seed] = seed.to_s if seed.present?
+      attrs[:character_seed_image_url] = image_url if image_url.present?
+      if attrs.any?
+        story.update!(attrs)
+        Rails.logger.info(
+          "Leonardo character seed stored story=#{story.id} seed=#{story.image_generation_seed} image=#{story.character_seed_image_url}"
+        )
       else
         Rails.logger.error("Leonardo character seed missing for story #{story.id} gen_id=#{generation_id}")
       end
@@ -494,7 +501,7 @@ class LeonardoClient
     style_prefix = style.present? ? "#{style}. " : ""
 
     <<~PROMPT.strip
-      #{style_prefix}Character reference sheet. Full body portraits of only these characters standing together, consistent cinematic style, clear faces and clothing.
+      #{style_prefix}Character reference sheet. Head-and-shoulders portraits of only these characters, cropped from the shoulders up, facing the camera. Focus on faces. Do not show the body below the shoulders.
       Generate only the main character and the two most mentioned supporting characters. Do not include anyone else.
 
       #{lines.join("\n")}
@@ -554,6 +561,13 @@ class LeonardoClient
     image.respond_to?(:stringify_keys) ? image.stringify_keys : image
   end
   private_class_method :generation_first_image
+
+  def self.generation_image_url(image)
+    return unless image.is_a?(Hash)
+
+    image["url"].presence || image["src"].presence
+  end
+  private_class_method :generation_image_url
 
   def self.generation_video_url(payload)
     candidates = []
@@ -630,12 +644,7 @@ class LeonardoClient
     scene.image_prompt_rewrite_count = scene.image_prompt_rewrite_count.to_i + 1
     scene.save
     Rails.logger.info("Leonardo scene=#{scene.id}: softened prompts instruction=#{instruction.inspect} and requeued generation")
-
-    if scene.story.leonardo_direct_video?
-      LeonardoCreateSceneVideoJob.perform_later(scene)
-    else
-      CreateSceneImagesJob.perform_later(scene)
-    end
+    scene.enqueue_leonardo_generation!
     true
   rescue => e
     Rails.logger.error("Leonardo scene=#{scene.id}: failed to soften prompts #{e.message}")

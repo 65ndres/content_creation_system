@@ -36,6 +36,25 @@ class DashboardController < ActionController::Base
     @scenes = @story.scenes.order(:id)
   end
 
+  def generate_videos
+    story = Story.find(params[:id])
+    queued = 0
+    story.scenes.order(:id).each do |scene|
+      wait = story.leonardo_direct_video? ? queued * 30.seconds : 0
+      queued += 1 if scene.enqueue_leonardo_generation!(wait: wait)
+    end
+    redirect_to story_path(story)
+  end
+
+  def create_video
+    story = Story.find(params[:id])
+    if story.scenes_audio_video_merge_completed?
+      story.update_columns(video_url: nil, video_gen_id: nil)
+      CreateStoryVideoJob.perform_later(story)
+    end
+    redirect_to story_path(story)
+  end
+
   def new_source
   end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_09_000000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_11_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -124,6 +124,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_09_000000) do
     t.string "image_generation_model", default: "lucid", null: false
     t.string "image_generation_seed"
     t.string "video_generation_model"
+    t.string "character_seed_image_url"
     t.index ["source_id"], name: "index_stories_on_source_id"
     t.index ["story_type_id"], name: "index_stories_on_story_type_id"
   end

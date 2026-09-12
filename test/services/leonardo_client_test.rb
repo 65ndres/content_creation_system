@@ -4,6 +4,44 @@ require "minitest/mock"
 class LeonardoClientTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
+  test "check_character_seed_generation_status stores seed number and image url" do
+    story = stories(:one)
+    story.update_columns(image_generation_seed: nil, character_seed_image_url: nil)
+
+    payload = {
+      "generations_by_pk" => {
+        "status" => "COMPLETE",
+        "seed" => 4242,
+        "generated_images" => [
+          { "url" => "https://cdn.leonardo.ai/seed.jpg" }
+        ]
+      }
+    }
+
+    LeonardoClient.stub(:check_asset_generation_status, payload) do
+      assert_enqueued_with(job: CreateStoryScenesJob, args: [ story ]) do
+        LeonardoClient.check_character_seed_generation_status(story, "gen-seed")
+      end
+    end
+
+    story.reload
+    assert_equal "4242", story.image_generation_seed
+    assert_equal "https://cdn.leonardo.ai/seed.jpg", story.character_seed_image_url
+  end
+
+  test "character seed prompt is a shoulders-up portrait" do
+    prompt = LeonardoClient.send(
+      :build_character_seed_prompt,
+      [ { "name" => "Ada", "physical_description" => "short dark hair" } ],
+      story_types(:one)
+    )
+
+    assert_match(/shoulders up/i, prompt)
+    assert_match(/focus on faces/i, prompt)
+    assert_no_match(/full body/i, prompt)
+    assert_includes prompt, "Ada"
+  end
+
   test "generate_scene_video retries later when Leonardo is rate limited" do
     scene = scenes(:one)
     scene.update_columns(video_url: nil, leonardo_video_url: nil, leonardo_video_gen_id: nil)

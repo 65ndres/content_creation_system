@@ -26,7 +26,12 @@ Rails.application.routes.draw do
   get "stories/new", to: "dashboard#new", as: :new_story
   post "stories", to: "dashboard#create", as: :create_story
   get "stories/:id", to: "dashboard#show", as: :story
+  post "stories/:id/generate_videos", to: "dashboard#generate_videos", as: :generate_story_videos
+  post "stories/:id/create_video", to: "dashboard#create_video", as: :create_story_video
   post "stories/:story_id/scenes/:id/rewrite_prompt", to: "scenes#rewrite_prompt", as: :rewrite_story_scene
+  post "stories/:story_id/scenes/:id/generate_video", to: "scenes#generate_video", as: :generate_story_scene_video
+  post "stories/:story_id/scenes/:id/regenerate_video", to: "scenes#regenerate_video", as: :regenerate_story_scene_video
+  post "stories/:story_id/scenes/:id/regenerate_audio", to: "scenes#regenerate_audio", as: :regenerate_story_scene_audio
 
   get "sources/new", to: "dashboard#new_source", as: :new_source
   post "sources/generate", to: "sources#generate", as: :generate_source

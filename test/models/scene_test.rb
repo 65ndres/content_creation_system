@@ -56,7 +56,8 @@ class SceneTest < ActiveSupport::TestCase
       text: "old narration",
       video_url: "https://example.com/scene.mp4",
       merged_audio_video_url: "https://example.com/merged.mp4",
-      merged_audio_video_gen_id: "old-merge"
+      merged_audio_video_gen_id: "old-merge",
+      audio_too_long: true
     )
     scene.story.update_columns(video_url: "https://example.com/story.mp4", video_gen_id: "story-gen")
 
@@ -69,7 +70,16 @@ class SceneTest < ActiveSupport::TestCase
     assert_equal "https://example.com/scene.mp4", scene.video_url
     assert_nil scene.merged_audio_video_url
     assert_nil scene.merged_audio_video_gen_id
+    assert_not scene.audio_too_long?
     assert_nil scene.story.reload.video_url
+  end
+
+  test "creating a scene enqueues audio instead of generating it inline" do
+    story = stories(:one)
+
+    assert_enqueued_with(job: CreateSceneAudioJob) do
+      story.scenes.create!(text: "A new scene for audio enqueue.", ai_image_prompt: [ "p" ], images_total: 1)
+    end
   end
 
   test "regenerate audio skips blank text" do

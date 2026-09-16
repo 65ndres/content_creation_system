@@ -92,6 +92,27 @@ class ChatGPTClient
     []
   end
 
+  SUMMARIZE_NARRATION_PROMPT = <<~PROMPT.squish
+    Rewrite this short voice-over narration in fewer words so it can be spoken in under 5 seconds.
+    Keep the same meaning, characters, and facts. Do not add new details, titles, or commentary.
+    Return ONLY the rewritten narration text.
+  PROMPT
+
+  def self.summarize_narration(text)
+    original = text.to_s.strip
+    return "" if original.blank?
+
+    rewritten = responses_request("#{SUMMARIZE_NARRATION_PROMPT}\n\nNarration:\n#{original}").to_s.strip
+    rewritten = rewritten.gsub(/\A["'`]+|["'`]+\z/, "").strip
+    return "" if rewritten.blank? || rewritten.casecmp?(original)
+    return "" if rewritten.split(/\s+/).size >= original.split(/\s+/).size
+
+    rewritten
+  rescue StandardError => e
+    Rails.logger.error("ChatGPTClient summarize_narration failed: #{e.message}")
+    ""
+  end
+
   def self.generate_scene_images_prompts(story)
     story_type = story.story_type
     input = story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s

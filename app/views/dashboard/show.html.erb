@@ -30,6 +30,9 @@
             disabled: !all_scenes_complete
           ) %>
     <% end %>
+    <% unless @scenes.empty? %>
+      <button type="button" class="btn" data-scenes-toggle>Show all scenes</button>
+    <% end %>
   </div>
   <% if @story.character_seed_image_url.present? || @story.video_url.present? %>
     <div class="story-media">
@@ -64,12 +67,20 @@
           <summary class="scene-summary">
             <span>Scene <%= index + 1 %></span>
             <span class="muted">#<%= scene.id %></span>
-            <span class="pill"><%= scene.generation_status_label %></span>
+            <span class="scene-pills">
+              <span class="pill"><%= scene.generation_status_label %></span>
+              <% if scene.audio_too_long? %>
+                <span class="pill pill-warn">Audio over 5s</span>
+              <% end %>
+            </span>
           </summary>
 
           <%= form_with url: regenerate_story_scene_audio_path(@story, scene), method: :post, class: "rewrite-form" do %>
             <label class="field-label" for="text-<%= scene.id %>">Narration</label>
             <textarea class="box prompt-box" name="text" id="text-<%= scene.id %>"><%= scene.text %></textarea>
+            <% if scene.audio_too_long? %>
+              <p class="is-error">Audio is still longer than 5 seconds after three shorter rewrites. Edit the narration and regenerate.</p>
+            <% end %>
             <div class="scene-actions">
               <button class="btn" type="submit">Regenerate audio</button>
             </div>

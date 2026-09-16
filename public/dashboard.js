@@ -119,5 +119,31 @@
     });
   }
 
+  function initScenesToggle() {
+    const button = document.querySelector("[data-scenes-toggle]");
+    const scenes = document.querySelectorAll("details.scene");
+    if (!button || scenes.length === 0) return;
+
+    function allOpen() {
+      return Array.from(scenes).every((scene) => scene.open);
+    }
+
+    function syncLabel() {
+      button.textContent = allOpen() ? "Hide all scenes" : "Show all scenes";
+    }
+
+    button.addEventListener("click", () => {
+      const nextOpen = !allOpen();
+      scenes.forEach((scene) => {
+        scene.open = nextOpen;
+      });
+      syncLabel();
+    });
+
+    scenes.forEach((scene) => scene.addEventListener("toggle", syncLabel));
+    syncLabel();
+  }
+
   document.querySelectorAll("[data-composer]").forEach(initComposer);
+  initScenesToggle();
 })();

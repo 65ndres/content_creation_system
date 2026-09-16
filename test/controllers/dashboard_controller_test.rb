@@ -83,6 +83,16 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", regenerate_story_scene_audio_path(stories(:one), scenes(:one))
     assert_select "textarea[name=text]", text: scenes(:one).text
     assert_select "button", text: "Regenerate audio"
+    assert_select "[data-scenes-toggle]"
+  end
+
+  test "story show marks scenes whose audio stayed over 5 seconds" do
+    scenes(:one).update_columns(audio_too_long: true)
+
+    get story_url(stories(:one))
+    assert_response :success
+    assert_select ".pill-warn", text: "Audio over 5s"
+    assert_select ".is-error", text: /longer than 5 seconds after three shorter rewrites/
   end
 
   test "story show collapses merged scenes" do

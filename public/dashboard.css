@@ -155,8 +155,16 @@ h2 {
   font-weight: 600;
 }
 
-.scene-summary .pill {
+.scene-summary .scene-pills {
   margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pill-warn {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .scene-actions {
@@ -407,6 +415,10 @@ audio,
 
 .is-error {
   color: var(--accent);
+}
+
+.rewrite-form .is-error {
+  margin: 0.5rem 0 0;
 }
 
 @media (max-width: 800px) {

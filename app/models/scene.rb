@@ -5,7 +5,7 @@ class Scene < ApplicationRecord
   after_create_commit :create_audio
 
   def create_audio
-    CreateSceneAudioJob.perform_now(self)
+    CreateSceneAudioJob.perform_later(self)
   end
 
   def create_video_and_audio
@@ -70,6 +70,7 @@ class Scene < ApplicationRecord
     audio.purge if audio.attached?
     self.merged_audio_video_url = nil
     self.merged_audio_video_gen_id = nil
+    assign_audio_too_long(false)
     save!
     clear_story_video!
     CreateSceneAudioJob.perform_later(self)
@@ -108,6 +109,19 @@ class Scene < ApplicationRecord
 
   def has_generated_stills?
     images_data.any? { |image_data| image_data["static_url"].present? }
+  end
+
+  def assign_audio_too_long(value)
+    self.class.refresh_audio_too_long_column!
+    return unless has_attribute?(:audio_too_long)
+
+    self.audio_too_long = value
+  end
+
+  def self.refresh_audio_too_long_column!
+    return if column_names.include?("audio_too_long")
+
+    reset_column_information
   end
 
   private

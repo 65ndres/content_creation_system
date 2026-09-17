@@ -39,6 +39,16 @@
     <label class="field-label" for="scenes-json-prompts">Scenes prompt</label>
     <textarea id="scenes-json-prompts" class="box" rows="10" data-scenes-prompt></textarea>
 
+    <label class="field-label" for="story-type-voice-id">Voice ID</label>
+    <input
+      id="story-type-voice-id"
+      class="select"
+      type="text"
+      data-voice-id
+      placeholder="<%= StoryType::DEFAULT_VOICE_ID %>"
+    >
+    <p class="muted">Leave blank to use the default ElevenLabs voice.</p>
+
     <div class="form-grid dim-grid">
       <label>
         <span class="field-label">Image width</span>

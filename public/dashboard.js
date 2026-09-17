@@ -99,6 +99,8 @@
           scene_text_min_chars: 70,
           scene_text_max_chars: 100
         };
+        const voiceId = root.querySelector("[data-voice-id]")?.value.trim();
+        if (voiceId) body.voice_id = voiceId;
       }
 
       saveBtn.disabled = true;

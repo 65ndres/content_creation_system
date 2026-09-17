@@ -10,6 +10,7 @@ one:
   image_height: 1
   scene_text_min_chars: 70
   scene_text_max_chars: 100
+  voice_id: HIGUfNOdjuWQwwapnTRW
 
 two:
   name: MyString
@@ -21,3 +22,4 @@ two:
   image_height: 1
   scene_text_min_chars: 70
   scene_text_max_chars: 100
+  voice_id: HIGUfNOdjuWQwwapnTRW

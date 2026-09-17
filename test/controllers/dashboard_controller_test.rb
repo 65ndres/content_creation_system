@@ -30,6 +30,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "textarea#story-type-prompt"
     assert_select "[data-generate]"
+    assert_select "input#story-type-voice-id"
   end
 
   test "create story enqueues generation" do

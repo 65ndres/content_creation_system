@@ -38,7 +38,8 @@ class StoryTypesController < ActionController::Base
       :output_width,
       :output_height,
       :scene_text_min_chars,
-      :scene_text_max_chars
+      :scene_text_max_chars,
+      :voice_id
     )
   end
 end

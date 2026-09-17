@@ -47,4 +47,27 @@ class ElevenlabsClientTest < ActiveSupport::TestCase
     assert scene.audio_too_long?
     assert_equal "one two three", scene.text
   end
+
+  test "generate audio uses the story type voice id" do
+    scene = scenes(:one)
+    scene.story.story_type.update!(voice_id: "customVoice123")
+    scene.update_columns(text: "hello from the scene")
+
+    captured_url = nil
+    response = Struct.new(:code, :body) do
+      def success?
+        true
+      end
+    end.new(200, "ID3abc")
+
+    HTTParty.stub(:post, ->(url, _options) {
+      captured_url = url
+      response
+    }) do
+      bytes = ElevenlabsClient.send(:generate_audio_bytes, scene)
+      assert_equal "ID3abc".b, bytes
+    end
+
+    assert_includes captured_url, "customVoice123"
+  end
 end

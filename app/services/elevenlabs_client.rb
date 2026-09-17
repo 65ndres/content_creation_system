@@ -2,9 +2,6 @@ require "stringio"
 require "tempfile"
 
 class ElevenlabsClient
-
-  VOICE_ID     = "HIGUfNOdjuWQwwapnTRW"
-  TTS_ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech/#{VOICE_ID}?output_format=mp3_44100_128"
   MODEL_ID     = "eleven_multilingual_v2"
   MAX_DURATION_SECONDS = 5.0
   MAX_LENGTH_ATTEMPTS = 3
@@ -65,7 +62,7 @@ class ElevenlabsClient
     options[:headers] = headers
     options[:body]    = data.to_json
 
-    res  = HTTParty.post(TTS_ENDPOINT, options)
+    res  = HTTParty.post(tts_endpoint(voice_id_for(scene)), options)
     body = res.body.to_s
 
     unless res.success? && mpeg_audio?(body)
@@ -101,6 +98,16 @@ class ElevenlabsClient
     )
   end
   private_class_method :attach_audio
+
+  def self.voice_id_for(scene)
+    scene.story&.story_type&.voice_id.presence || StoryType::DEFAULT_VOICE_ID
+  end
+  private_class_method :voice_id_for
+
+  def self.tts_endpoint(voice_id)
+    "https://api.elevenlabs.io/v1/text-to-speech/#{voice_id}?output_format=mp3_44100_128"
+  end
+  private_class_method :tts_endpoint
 
   def self.audio_duration_seconds(bytes)
     return 0 if bytes.blank?

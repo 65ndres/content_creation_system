@@ -28,6 +28,7 @@ Rails.application.routes.draw do
   get "stories/:id", to: "dashboard#show", as: :story
   post "stories/:id/generate_videos", to: "dashboard#generate_videos", as: :generate_story_videos
   post "stories/:id/create_video", to: "dashboard#create_video", as: :create_story_video
+  post "stories/:id/rebuild_scene_videos", to: "dashboard#rebuild_scene_videos", as: :rebuild_story_scene_videos
   post "stories/:story_id/scenes/:id/rewrite_prompt", to: "scenes#rewrite_prompt", as: :rewrite_story_scene
   post "stories/:story_id/scenes/:id/generate_video", to: "scenes#generate_video", as: :generate_story_scene_video
   post "stories/:story_id/scenes/:id/regenerate_video", to: "scenes#regenerate_video", as: :regenerate_story_scene_video

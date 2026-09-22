@@ -177,6 +177,7 @@ class VideoEditorClient
     payload["story_id"]    = scene.story_id
     payload["images_urls"] = scene.images_data.filter_map { |image_data| image_data["static_url"] }
     payload["audio_url"]   = attached_download_url(scene.audio)
+    payload["scene_text"]  = scene.text
     payload
   end
   private_class_method :generate_scene_video_payload

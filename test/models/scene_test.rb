@@ -90,4 +90,38 @@ class SceneTest < ActiveSupport::TestCase
       assert_not scene.regenerate_audio!(text: "   ")
     end
   end
+
+  test "rebuild slideshow video clears video and merge then requeues stills assembly" do
+    scene = scenes(:one)
+    scene.update_columns(
+      images_data: [ { "static_url" => "https://cdn.example.com/still.jpg" } ],
+      video_url: "https://example.com/old.mp4",
+      video_gen_id: "old-gen",
+      merged_audio_video_url: "https://example.com/merged.mp4",
+      merged_audio_video_gen_id: "old-merge"
+    )
+    scene.story.update_columns(video_url: "https://example.com/story.mp4", video_gen_id: "story-gen")
+    scene.audio.attach(io: StringIO.new("ID3"), filename: "n.mp3", content_type: "audio/mpeg")
+
+    assert_enqueued_with(job: GenerateSceneVideoJob, args: [ scene ]) do
+      assert scene.rebuild_slideshow_video!
+    end
+
+    scene.reload
+    assert_nil scene.video_url
+    assert_nil scene.video_gen_id
+    assert_nil scene.merged_audio_video_url
+    assert_nil scene.merged_audio_video_gen_id
+    assert_equal "https://cdn.example.com/still.jpg", scene.images_data.first["static_url"]
+    assert_nil scene.story.reload.video_url
+  end
+
+  test "rebuild slideshow video skips when stills or audio are missing" do
+    scene = scenes(:one)
+    scene.update_columns(images_data: [])
+
+    assert_no_enqueued_jobs only: GenerateSceneVideoJob do
+      assert_not scene.rebuild_slideshow_video!
+    end
+  end
 end

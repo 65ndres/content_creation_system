@@ -55,6 +55,12 @@ class DashboardController < ActionController::Base
     redirect_to story_path(story)
   end
 
+  def rebuild_scene_videos
+    story = Story.find(params[:id])
+    story.scenes.order(:id).each(&:rebuild_slideshow_video!)
+    redirect_to story_path(story)
+  end
+
   def new_source
   end
 

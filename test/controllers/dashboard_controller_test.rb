@@ -179,4 +179,31 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       assert_in_delta 30.seconds.from_now.to_f, scheduled.first, 1
     end
   end
+
+  test "rebuild scene videos enqueues stills assembly" do
+    scene = scenes(:one)
+    scene.update_columns(
+      images_data: [ { "static_url" => "https://cdn.example.com/still.jpg" } ],
+      video_url: "https://example.com/old.mp4",
+      merged_audio_video_url: "https://example.com/merged.mp4"
+    )
+    scene.audio.attach(io: StringIO.new("ID3"), filename: "n.mp3", content_type: "audio/mpeg")
+
+    assert_enqueued_with(job: GenerateSceneVideoJob, args: [ scene ]) do
+      post rebuild_story_scene_videos_url(stories(:one))
+    end
+
+    assert_redirected_to story_url(stories(:one))
+    scene.reload
+    assert_nil scene.video_url
+    assert_nil scene.merged_audio_video_url
+  end
+
+  test "story show lists rebuild captions button when stills exist" do
+    scenes(:one).update_columns(images_data: [ { "static_url" => "https://cdn.example.com/still.jpg" } ])
+
+    get story_url(stories(:one))
+    assert_response :success
+    assert_select "form[action=?]", rebuild_story_scene_videos_path(stories(:one))
+  end
 end

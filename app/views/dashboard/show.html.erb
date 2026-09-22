@@ -21,6 +21,9 @@
     <% if needs_leonardo %>
       <%= button_to "Generate all remaining videos", generate_story_videos_path(@story), method: :post, class: "btn" %>
     <% end %>
+    <% if @scenes.any?(&:has_generated_stills?) %>
+      <%= button_to "Rebuild videos with captions", rebuild_story_scene_videos_path(@story), method: :post, class: "btn" %>
+    <% end %>
     <% unless @scenes.empty? %>
       <%= button_to(
             @story.video_url.present? ? "Recreate story video" : "Create story video",

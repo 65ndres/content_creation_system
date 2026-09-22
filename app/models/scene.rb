@@ -77,6 +77,20 @@ class Scene < ApplicationRecord
     true
   end
 
+  def rebuild_slideshow_video!
+    return false unless has_generated_stills?
+    return false unless audio.attached?
+
+    self.video_url = nil
+    self.video_gen_id = nil
+    self.merged_audio_video_url = nil
+    self.merged_audio_video_gen_id = nil
+    save!
+    clear_story_video!
+    GenerateSceneVideoJob.perform_later(self)
+    true
+  end
+
   def enqueue_leonardo_generation!(wait: 0)
     return false if video_ready? || leonardo_generation_in_flight?
 

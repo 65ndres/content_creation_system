@@ -3,8 +3,9 @@ require "tempfile"
 
 class ElevenlabsClient
   MODEL_ID     = "eleven_multilingual_v2"
-  MAX_DURATION_SECONDS = 5.0
-  MAX_LENGTH_ATTEMPTS = 3
+  # Scenes are timed to their narration, so length is informational only.
+  # Narration text is never rewritten (Scripture must stay verbatim).
+  LONG_AUDIO_WARNING_SECONDS = 15.0
 
   def self.create_audio_file(scene)
     if scene.text.blank?
@@ -12,40 +13,15 @@ class ElevenlabsClient
       return
     end
 
-    last_bytes = nil
-    MAX_LENGTH_ATTEMPTS.times do |attempt|
-      bytes = generate_audio_bytes(scene)
-      break if bytes.blank?
+    bytes = generate_audio_bytes(scene)
+    return if bytes.blank?
 
-      last_bytes = bytes
-      duration = audio_duration_seconds(bytes)
-      Rails.logger.info(
-        "ElevenlabsClient audio duration=#{duration} attempt=#{attempt + 1} scene=#{scene.id}"
-      )
+    duration = audio_duration_seconds(bytes)
+    Rails.logger.info("ElevenlabsClient audio duration=#{duration} scene=#{scene.id}")
 
-      if duration <= 0 || duration < MAX_DURATION_SECONDS
-        attach_audio(scene, bytes)
-        assign_audio_too_long!(scene, false)
-        return bytes
-      end
-
-      break if attempt == MAX_LENGTH_ATTEMPTS - 1
-
-      summarized = ChatGPTClient.summarize_narration(scene.text)
-      if summarized.blank? || summarized == scene.text
-        Rails.logger.warn("ElevenlabsClient cannot summarize narration further scene=#{scene.id}")
-        break
-      end
-
-      scene.update!(text: summarized)
-    end
-
-    return if last_bytes.blank?
-
-    attach_audio(scene, last_bytes)
-    assign_audio_too_long!(scene, true)
-    Rails.logger.warn("ElevenlabsClient audio still over #{MAX_DURATION_SECONDS}s scene=#{scene.id}")
-    last_bytes
+    attach_audio(scene, bytes)
+    assign_audio_too_long!(scene, duration > LONG_AUDIO_WARNING_SECONDS)
+    bytes
   end
 
   def self.generate_audio_bytes(scene)
@@ -57,6 +33,11 @@ class ElevenlabsClient
     data             = {}
     data[:text]      = scene.text
     data[:model_id]  = MODEL_ID
+    # Neighbouring narration keeps intonation continuous across scene boundaries,
+    # so the story reads as one voice-over instead of separate clips.
+    previous_text, next_text = neighbouring_texts(scene)
+    data[:previous_text] = previous_text if previous_text.present?
+    data[:next_text]     = next_text if next_text.present?
 
     options           = {}
     options[:headers] = headers
@@ -75,6 +56,14 @@ class ElevenlabsClient
     body.b
   end
   private_class_method :generate_audio_bytes
+
+  def self.neighbouring_texts(scene)
+    siblings = Scene.where(story_id: scene.story_id).order(:id)
+    previous_text = siblings.where("id < ?", scene.id).last(2).map(&:text).join(" ")
+    next_text     = siblings.where("id > ?", scene.id).first(2).map(&:text).join(" ")
+    [ previous_text.strip, next_text.strip ]
+  end
+  private_class_method :neighbouring_texts
 
   def self.assign_audio_too_long!(scene, value)
     Scene.refresh_audio_too_long_column!

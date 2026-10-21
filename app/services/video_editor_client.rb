@@ -48,7 +48,7 @@ class VideoEditorClient
     scene.video_gen_id = gen_id
 
     if scene.save
-      CheckSceneVideoGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
+      CheckSceneVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
   end
 
@@ -102,7 +102,7 @@ class VideoEditorClient
     scene.merged_audio_video_gen_id = gen_id
 
     if scene.save
-      CheckMergedAudioVideoGenerationStatusJob.set(wait: (3 + rand()).round(2).minutes).perform_later(scene)
+      CheckMergedAudioVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
   end
 
@@ -178,6 +178,9 @@ class VideoEditorClient
     payload["images_urls"] = scene.images_data.filter_map { |image_data| image_data["static_url"] }
     payload["audio_url"]   = attached_download_url(scene.audio)
     payload["scene_text"]  = scene.text
+    story_type = scene.story.story_type
+    payload["output_width"]  = story_type.output_width
+    payload["output_height"] = story_type.output_height
     payload
   end
   private_class_method :generate_scene_video_payload
@@ -188,6 +191,7 @@ class VideoEditorClient
     payload["audio_url"]  = audio_path
     payload["scene_id"]   = scene.id
     payload["story_id"]   = scene.story_id
+    payload["scene_text"] = scene.text
     payload
   end
 
@@ -258,8 +262,11 @@ class VideoEditorClient
     if data["completed"] == true || data["completed"] == "true"
       scene.video_url = data["file_path"]
       scene.save
+    elsif generation_failed?(data)
+      Rails.logger.error("is_scene_video_ready scene=#{scene.id}: video editor job #{gen_id} failed, stopped polling")
+      scene.update(video_gen_id: nil)
     else
-      CheckSceneVideoGenerationStatusJob.set(wait: 3.minutes).perform_later(scene)
+      CheckSceneVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
   end
 
@@ -276,8 +283,11 @@ class VideoEditorClient
     if data["completed"] == true
       scene.merged_audio_video_url = data["file_path"]
       scene.save
+    elsif generation_failed?(data)
+      Rails.logger.error("is_merged_audio_video_ready scene=#{scene.id}: video editor job #{gen_id} failed, stopped polling")
+      scene.update(merged_audio_video_gen_id: nil)
     else
-      CheckMergedAudioVideoGenerationStatusJob.set(wait: 3.minutes).perform_later(scene)
+      CheckMergedAudioVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
   end
 
@@ -288,10 +298,18 @@ class VideoEditorClient
     if data["completed"] == true
       story.video_url = data["file_path"]
       story.save
+    elsif generation_failed?(data)
+      Rails.logger.error("is_story_video_ready story=#{story.id}: video editor job #{gen_id} failed, stopped polling")
+      story.update(video_gen_id: nil)
     else
       CheckStoryVideoGenerationStatusJob.set(wait: 3.minutes).perform_later(story)
     end
   end
+
+  def self.generation_failed?(data)
+    data["failed"] == true || data["failed"] == "true"
+  end
+  private_class_method :generation_failed?
 
   def self.generation_status(gen_id)
     return {} if gen_id.blank?

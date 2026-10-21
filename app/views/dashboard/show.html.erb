@@ -46,7 +46,7 @@
         </figure>
       <% end %>
       <% if @story.video_url.present? %>
-        <video class="final-video" controls src="<%= @story.video_url %>"></video>
+        <video class="final-video" controls src="<%= story_final_video_url(@story) %>"></video>
       <% end %>
     </div>
   <% end %>
@@ -73,7 +73,7 @@
             <span class="scene-pills">
               <span class="pill"><%= scene.generation_status_label %></span>
               <% if scene.audio_too_long? %>
-                <span class="pill pill-warn">Audio over 5s</span>
+                <span class="pill pill-warn">Long narration</span>
               <% end %>
             </span>
           </summary>
@@ -82,7 +82,7 @@
             <label class="field-label" for="text-<%= scene.id %>">Narration</label>
             <textarea class="box prompt-box" name="text" id="text-<%= scene.id %>"><%= scene.text %></textarea>
             <% if scene.audio_too_long? %>
-              <p class="is-error">Audio is still longer than 5 seconds after three shorter rewrites. Edit the narration and regenerate.</p>
+              <p class="muted">Narration is over 15 seconds. The scene will run its full length; consider splitting it if the image feels static.</p>
             <% end %>
             <div class="scene-actions">
               <button class="btn" type="submit">Regenerate audio</button>
@@ -153,7 +153,7 @@
             <figure>
               <figcaption>Merged audio + video</figcaption>
               <% if scene.merged_audio_video_url.present? %>
-                <video controls src="<%= scene.merged_audio_video_url %>"></video>
+                <video controls src="<%= scene_merged_video_url(scene) %>"></video>
               <% else %>
                 <p class="placeholder">Not ready</p>
               <% end %>

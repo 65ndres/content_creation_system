@@ -2,7 +2,8 @@ class Scene < ApplicationRecord
   has_one_attached :audio
   belongs_to :story
 
-  after_create_commit :create_audio
+  # Audio is enqueued by Story#create_scenes once every scene exists, so each
+  # narration request can see its neighbours' text (see ElevenlabsClient).
 
   def create_audio
     CreateSceneAudioJob.perform_later(self)

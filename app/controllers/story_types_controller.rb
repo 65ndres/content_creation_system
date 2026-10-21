@@ -33,6 +33,7 @@ class StoryTypesController < ActionController::Base
       :name,
       :story_prompt_text,
       :scenes_json_prompts,
+      :visual_style,
       :image_width,
       :image_height,
       :output_width,

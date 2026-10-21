@@ -41,6 +41,10 @@ class LeonardoClient
     [ WAN_VIDEO_MODEL, "Wan 2.6" ]
   ].freeze
   MAX_PROMPT_REWRITES = 3
+  # Appended to every image prompt. Image models tend to draw palettes as
+  # swatch strips and wrap illustrations in a white margin or panel frame.
+  FULL_BLEED_SUFFIX = "Full-bleed illustration that fills the entire canvas edge to edge: no border, no frame, " \
+                      "no white margin, no panel outline. Do not draw color swatches, a palette chart, or color labels."
   DEFAULT_PROMPT_REWRITE_INSTRUCTION = "make this scene less violent, and remove blood"
 
   def self.normalize_image_model(model)
@@ -68,11 +72,23 @@ class LeonardoClient
     api        = image_model_api(model)
     endpoint   = image_generation_endpoint(model)
 
-    StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each do |prompt|
+    rate_limited = false
+
+    StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each_with_index do |prompt, i|
+      # Already submitted on an earlier attempt (e.g. before a rate limit).
+      next if scene.images_data[i].is_a?(Hash) && scene.images_data[i]["leonardo_image_gen_id"].present?
+
       begin
         payload  = image_generation_payload(model, prompt, story_type, seed: story.image_generation_seed)
         response = generate_asset(payload, endpoint)
         Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id} model=#{model} response=#{response.inspect&.slice(0, 500)}")
+
+        # Too many pending generations is not a content problem: retry the
+        # same prompts later instead of rewriting them.
+        if rate_limited_response?(response)
+          rate_limited = true
+          break
+        end
 
         generation_id = extract_generation_id(response)
         if generation_id.present?
@@ -89,7 +105,10 @@ class LeonardoClient
     end
 
     scene.save
-    if scene.images_data.any? { |image_data| image_data["leonardo_image_gen_id"].present? }
+    if rate_limited
+      Rails.logger.warn("Leonardo generate_scene_images scene=#{scene.id}: rate limited, retrying later")
+      CreateSceneImagesJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+    elsif scene.images_data.any? { |image_data| image_data["leonardo_image_gen_id"].present? }
       CheckSceneImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
     elsif rewrite_blocked_scene_prompts(scene)
       Rails.logger.info("Leonardo generate_scene_images scene=#{scene.id}: rewrote prompts after Leonardo rejected them")
@@ -429,6 +448,15 @@ class LeonardoClient
   end
   private_class_method :image_generation_endpoint
 
+  # Hex codes are what make the model render the palette as swatches, so they
+  # are stripped (also from prompts already stored on scenes).
+  def self.finalize_image_prompt(prompt, max_length)
+    body = prompt.to_s.gsub(/\s*#\h{6}\b/, "").strip
+    body = truncate_prompt(body, max_length - FULL_BLEED_SUFFIX.length - 1)
+    "#{body} #{FULL_BLEED_SUFFIX}"
+  end
+  private_class_method :finalize_image_prompt
+
   def self.image_generation_payload(model, prompt, story_type, seed: nil)
     model = normalize_image_model(model)
     seed_value = integer_seed(seed)
@@ -436,7 +464,7 @@ class LeonardoClient
       parameters = {
         "width"          => NANO_BANANA_2_WIDTH,
         "height"         => NANO_BANANA_2_HEIGHT,
-        "prompt"         => truncate_prompt(prompt.to_s, MAX_NANO_BANANA_PROMPT_LENGTH),
+        "prompt"         => finalize_image_prompt(prompt, MAX_NANO_BANANA_PROMPT_LENGTH),
         "quantity"       => 1,
         "style_ids"      => [DYNAMIC_STYLE_UUID],
         "prompt_enhance" => "OFF"
@@ -449,7 +477,7 @@ class LeonardoClient
       }
     else
       payload = {
-        "prompt"     => truncate_hailuo_prompt(prompt.to_s),
+        "prompt"     => finalize_image_prompt(prompt, MAX_HAILUO_PROMPT_LENGTH),
         "modelId"    => LUCID_ORIGIN_MODEL_ID,
         "width"      => story_type.image_width,
         "height"     => story_type.image_height,
@@ -497,11 +525,15 @@ class LeonardoClient
     lines = characters.map do |character|
       "- #{character['name']}: #{character['physical_description']}"
     end
-    style = story_type&.name.to_s.strip
-    style_prefix = style.present? ? "#{style}. " : ""
+    style = story_type&.seed_visual_style.to_s.strip
+    style_line = if style.present?
+      "Visual style (match it exactly, same as every scene of this story): #{style.sub(/[.\s]+\z/, '')}.\n"
+    else
+      ""
+    end
 
     <<~PROMPT.strip
-      #{style_prefix}Character reference sheet. Head-and-shoulders portraits of only these characters, cropped from the shoulders up, facing the camera. Focus on faces. Do not show the body below the shoulders.
+      #{style_line}Character reference sheet drawn in that same art style, with a background that fits the style. Head-and-shoulders portraits of only these characters, cropped from the shoulders up, facing the camera. Focus on faces. Do not show the body below the shoulders.
       Generate only the main character and the two most mentioned supporting characters. Do not include anyone else.
 
       #{lines.join("\n")}

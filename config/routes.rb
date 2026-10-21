@@ -34,6 +34,9 @@ Rails.application.routes.draw do
   post "stories/:story_id/scenes/:id/regenerate_video", to: "scenes#regenerate_video", as: :regenerate_story_scene_video
   post "stories/:story_id/scenes/:id/regenerate_audio", to: "scenes#regenerate_audio", as: :regenerate_story_scene_audio
 
+  get "media/scenes/:id/:kind", to: "media#scene", as: :scene_media, constraints: { kind: /video|merged/ }
+  get "media/stories/:id/video", to: "media#story", as: :story_media
+
   get "sources/new", to: "dashboard#new_source", as: :new_source
   post "sources/generate", to: "sources#generate", as: :generate_source
   resources :sources, only: [ :create ]

@@ -42,6 +42,20 @@ class LeonardoClientTest < ActiveSupport::TestCase
     assert_includes prompt, "Ada"
   end
 
+  test "character seed prompt uses the story type visual style" do
+    story_type = story_types(:one)
+    story_type.update_columns(visual_style: "Retro 1980s anime-style screen-print illustration, thin black ink linework")
+
+    prompt = LeonardoClient.send(
+      :build_character_seed_prompt,
+      [ { "name" => "Ada", "physical_description" => "short dark hair" } ],
+      story_type
+    )
+
+    assert prompt.start_with?("Visual style")
+    assert_includes prompt, "Retro 1980s anime-style screen-print illustration, thin black ink linework."
+  end
+
   test "generate_scene_video retries later when Leonardo is rate limited" do
     scene = scenes(:one)
     scene.update_columns(video_url: nil, leonardo_video_url: nil, leonardo_video_gen_id: nil)

@@ -65,6 +65,10 @@ class Story < ApplicationRecord
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => e
       Rails.logger.error("Error creating scene for story #{id}: #{e.message}")
     end
+
+    scenes.reload.order(:id).each do |scene|
+      scene.create_audio unless scene.audio.attached?
+    end
   rescue JSON::ParserError, StandardError => e
     Rails.logger.error("Error creating scenes for story #{id}: #{e.message}")
   end

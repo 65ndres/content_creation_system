@@ -60,6 +60,7 @@
           root.querySelector("[data-name]").value = data.name || "";
           root.querySelector("[data-story-prompt]").value = data.story_prompt_text || "";
           root.querySelector("[data-scenes-prompt]").value = data.scenes_json_prompts || "";
+          root.querySelector("[data-visual-style]").value = data.visual_style || "";
           setStatus(statusEl, "Story type drafted. Edit it below if you want, then save.");
           root.querySelector("[data-name]").focus();
         }
@@ -101,6 +102,8 @@
         };
         const voiceId = root.querySelector("[data-voice-id]")?.value.trim();
         if (voiceId) body.voice_id = voiceId;
+        const visualStyle = root.querySelector("[data-visual-style]")?.value.trim();
+        if (visualStyle) body.visual_style = visualStyle;
       }
 
       saveBtn.disabled = true;

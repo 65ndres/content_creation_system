@@ -15,8 +15,10 @@ class ChatGPTClient
     {
       "name": "short display name",
       "story_prompt_text": "instructions that take a source article and write voice-over narration",
-      "scenes_json_prompts": "instructions that take that narration and return JSON image prompts"
+      "scenes_json_prompts": "instructions that take that narration and return JSON image prompts",
+      "visual_style": "the exact art style every image must use: medium, rendering, line work, lighting, color palette, texture"
     }
+    visual_style must match the style that scenes_json_prompts asks for, word for word where it gives a style phrase.
     scenes_json_prompts must tell the model to return JSON with a key "pairs", an array of objects.
     Each object must have "original" (a narration sentence) and "aiImagePrompts" (an array of exactly one prompt string).
     Those prompt strings must stay under 1500 characters and describe action, setting, and mood only — no character physical descriptions.
@@ -31,14 +33,35 @@ class ChatGPTClient
     {
       "name" => data["name"].to_s,
       "story_prompt_text" => data["story_prompt_text"].to_s,
-      "scenes_json_prompts" => data["scenes_json_prompts"].to_s
+      "scenes_json_prompts" => data["scenes_json_prompts"].to_s,
+      "visual_style" => data["visual_style"].to_s
     }
   rescue JSON::ParserError
     {
       "name" => "",
       "story_prompt_text" => raw.to_s,
-      "scenes_json_prompts" => ""
+      "scenes_json_prompts" => "",
+      "visual_style" => ""
     }
+  end
+
+  VISUAL_STYLE_EXTRACTION_PROMPT = <<~PROMPT.squish
+    The instructions below tell a model how to write AI image prompts for a story.
+    Extract only the visual art style those images must share: the required opening style phrase, art medium,
+    rendering, line work, lighting, color palette names, texture, and any style block, copied word for word.
+    Leave out JSON format rules, scene splitting, narration, length limits, and per-scene content.
+    Return ONLY the style text, under 500 characters, with no commentary or quotes.
+    Instructions:
+  PROMPT
+
+  def self.extract_visual_style(scenes_json_prompts)
+    return "" if scenes_json_prompts.blank?
+
+    style = responses_request("#{VISUAL_STYLE_EXTRACTION_PROMPT}\n#{scenes_json_prompts}").to_s.strip
+    style.gsub(/\A["'`]+|["'`]+\z/, "").strip
+  rescue StandardError => e
+    Rails.logger.error("ChatGPTClient extract_visual_style failed: #{e.message}")
+    ""
   end
 
   def self.generate_story_text(story)
@@ -59,13 +82,24 @@ class ChatGPTClient
   PROMPT
 
   def self.generate_story_characters(story)
-    input = CHARACTERS_EXTRACTION_PROMPT + ' ' + story.text.to_s
+    style = story.story_type.seed_visual_style
+    input = CHARACTERS_EXTRACTION_PROMPT
+    if style.present?
+      style_note = "The characters will be drawn in this visual style: #{style}. " \
+                   "Describe clothing and colors that fit this style; do not name a different art style. Story:"
+      input = input.sub(/Story:\z/, style_note)
+    end
+    input += ' ' + story.text.to_s
     responses_request(input)
   end
 
   SOFTEN_IMAGE_PROMPTS = <<~PROMPT.squish
     Rewrite each AI image and video generation prompt using the instruction below.
     Keep the same characters, setting, narrative, and visual style.
+    Image safety filters react to sensitive words even when negated, so remove sensitive concepts instead of negating them:
+    never write words such as blood, wound, injury, violence, harm, trampling, crushing, fallen, or nude, not even as "no blood" or "unharmed".
+    Describe only what is visible, in calm positive terms. Show crowds as a few people standing apart with space between them,
+    never pressed together or tangled; keep everyone fully clothed and upright.
     Do not add commentary or markdown.
     Return ONLY valid JSON with this structure:
     { "prompts": ["rewritten prompt 1", "rewritten prompt 2"] }

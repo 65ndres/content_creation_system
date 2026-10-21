@@ -1,6 +1,6 @@
 class DashboardController < ActionController::Base
   layout "dashboard"
-  helper_method :scene_audio_url, :scene_video_url, :story_status
+  helper_method :scene_audio_url, :scene_video_url, :scene_merged_video_url, :story_final_video_url, :story_status
 
   def index
     @stories = Story.includes(:story_type, :source, :scenes).order(created_at: :desc)
@@ -40,7 +40,9 @@ class DashboardController < ActionController::Base
     story = Story.find(params[:id])
     queued = 0
     story.scenes.order(:id).each do |scene|
-      wait = story.leonardo_direct_video? ? queued * 30.seconds : 0
+      # Leonardo's plan allows one pending generation at a time, so space out
+      # every scene (images and direct video alike).
+      wait = queued * 30.seconds
       queued += 1 if scene.enqueue_leonardo_generation!(wait: wait)
     end
     redirect_to story_path(story)
@@ -94,7 +96,22 @@ class DashboardController < ActionController::Base
   end
 
   def scene_video_url(scene)
-    scene.leonardo_video_url.presence || scene.video_url.presence
+    scene.leonardo_video_url.presence || playable_url(scene.video_url) { scene_media_path(scene, kind: "video") }
+  end
+
+  def scene_merged_video_url(scene)
+    playable_url(scene.merged_audio_video_url) { scene_media_path(scene, kind: "merged") }
+  end
+
+  def story_final_video_url(story)
+    playable_url(story.video_url) { story_media_path(story) }
+  end
+
+  # Remote URLs play as-is; local paths from video_editor go through MediaController.
+  def playable_url(url)
+    return if url.blank?
+
+    url.match?(/\Ahttps?:\/\//i) ? url : yield
   end
 
   def story_status(story)

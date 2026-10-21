@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_17_010000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -143,6 +143,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_17_010000) do
     t.integer "output_width", null: false
     t.integer "output_height", null: false
     t.string "voice_id", default: "HIGUfNOdjuWQwwapnTRW", null: false
+    t.text "visual_style"
   end
 
   create_table "testproducts", primary_key: "testproduct_id", id: :serial, force: :cascade do |t|

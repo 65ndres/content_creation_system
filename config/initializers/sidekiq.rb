@@ -10,3 +10,8 @@ end
 Sidekiq.configure_client do |config|
   config.redis = { url: redis_url }
 end
+
+# Recover the story queue after a restart and keep the stall watchdog running.
+Sidekiq.configure_server do |config|
+  config.on(:startup) { StoryQueueWatchdogJob.perform_later }
+end

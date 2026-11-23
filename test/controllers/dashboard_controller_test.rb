@@ -12,7 +12,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get new_story_url
     assert_response :success
     assert_select "select#story_story_type_id"
-    assert_select "select#story_source_id"
+    assert_select "input[type=checkbox][name='story[source_ids][]']", count: Source.count
     assert_select "select#story_image_generation_model"
     assert_select "select#story_video_generation_model"
     assert_select "textarea#source-prompt", count: 0
@@ -51,6 +51,59 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal "wan-2.6", story.video_generation_model
     assert_equal story_types(:one).id, story.story_type_id
     assert_equal sources(:one).id, story.source_id
+  end
+
+  test "create with several sources queues one story each and starts only the first" do
+    assert_enqueued_jobs 1, only: CreateStoryTextJob do
+      assert_difference -> { Story.count }, 2 do
+        post create_story_url, params: {
+          story: {
+            story_type_id: story_types(:one).id,
+            source_ids: [ sources(:one).id, sources(:two).id ],
+            image_generation_model: "lucid"
+          }
+        }
+      end
+    end
+
+    assert_redirected_to stories_url
+    first, second = Story.order(:id).last(2)
+    assert_equal [ sources(:one).id, sources(:two).id ], [ first.source_id, second.source_id ]
+    assert first.queue_running?
+    assert second.queue_queued?
+
+    follow_redirect!
+    assert_select ".flash", /2 stories queued/
+    assert_select ".queue-panel", /Up next/
+    assert_select ".pill", /Queued · #1 in line/
+  end
+
+  test "create without a source shows an error" do
+    assert_no_difference -> { Story.count } do
+      post create_story_url, params: { story: { story_type_id: story_types(:one).id, image_generation_model: "lucid" } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".is-error", /Pick at least one source/
+  end
+
+  test "cancel and retry move a story out of and back into the queue" do
+    stories(:one).update_columns(queue_state: "queued", queued_at: Time.current)
+    stories(:two).update_columns(queue_state: "running", started_at: Time.current)
+
+    post cancel_story_url(stories(:one))
+    assert stories(:one).reload.queue_cancelled?
+
+    post retry_story_url(stories(:one))
+    assert stories(:one).reload.queue_queued?
+  end
+
+  test "a failed story shows why it stopped and offers retry" do
+    stories(:one).update_columns(queue_state: "failed", last_error: "Final video render failed")
+
+    get story_url(stories(:one))
+    assert_select ".is-error", /Final video render failed/
+    assert_select "form[action=?]", retry_story_path(stories(:one))
   end
 
   test "story show lists the character seed image" do
@@ -205,5 +258,25 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get story_url(stories(:one))
     assert_response :success
     assert_select "form[action=?]", rebuild_story_scene_videos_path(stories(:one))
+  end
+
+  test "new story type offers uploaded outro videos as an optional choice" do
+    outro = OutroVideo.new(name: "Gospel closing")
+    outro.video.attach(io: file_fixture("outro.mp4").open, filename: "outro.mp4", content_type: "video/mp4")
+    outro.save!
+
+    get new_story_type_url
+
+    assert_response :success
+    assert_select "select[data-outro-video] option[value='']", text: "None"
+    assert_select "select[data-outro-video] option[value=?]", outro.id.to_s, text: "Gospel closing"
+    assert_select "a.tab.is-active", text: "New story type"
+  end
+
+  test "outro videos tab is highlighted only on its own page" do
+    get outro_videos_url
+
+    assert_select "a.tab.is-active", count: 1
+    assert_select "a.tab.is-active", text: "Outro videos"
   end
 end

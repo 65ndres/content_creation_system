@@ -53,6 +53,15 @@
     >
     <p class="muted">Leave blank to use the default ElevenLabs voice.</p>
 
+    <label class="field-label" for="story-type-outro-video">Outro video</label>
+    <select id="story-type-outro-video" class="select" data-outro-video>
+      <option value="">None</option>
+      <% @outro_videos.each do |outro| %>
+        <option value="<%= outro.id %>"><%= outro.name %></option>
+      <% end %>
+    </select>
+    <p class="muted">Optional. Plays at the end of this type's videos. <%= link_to "Upload an outro", outro_videos_path %></p>
+
     <div class="form-grid dim-grid">
       <label>
         <span class="field-label">Image width</span>

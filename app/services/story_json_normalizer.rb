@@ -1,4 +1,8 @@
 class StoryJsonNormalizer
+  # Role words shared by many characters ("Dragon Baby" / "Unicorn Baby") must not
+  # match on their own, or one baby would pick up the other's description.
+  GENERIC_NAME_TOKENS = %w[baby babies mother father child kids girl woman lady].freeze
+
   def self.normalize_pairs(data)
     pairs = case data
             when Hash then data["pairs"] || data[:pairs]
@@ -10,6 +14,23 @@ class StoryJsonNormalizer
     return [] unless pairs.is_a?(Array)
 
     pairs.select { |obj| obj.is_a?(Hash) }
+  end
+
+  # A scene's narration may end at . ? ! … ; : or , (optionally followed by a closing quote).
+  PHRASE_BREAK = /[.?!…;:,]["'”’)\]]*\z/
+
+  # Joins any pair whose narration stops mid-phrase ("You tiptoe out") with the
+  # pairs after it, so a scene never cuts a sentence in an odd place. The joined
+  # pair keeps the first pair's image prompts.
+  def self.merge_mid_phrase_pairs(pairs)
+    pairs.each_with_object([]) do |pair, merged|
+      previous = merged.last
+      if previous && !previous["original"].to_s.strip.match?(PHRASE_BREAK)
+        previous["original"] = "#{previous['original'].to_s.strip} #{pair['original'].to_s.strip}".strip
+      else
+        merged << pair.dup
+      end
+    end
   end
 
   def self.normalize_ai_image_prompts(value)
@@ -76,7 +97,10 @@ class StoryJsonNormalizer
   def self.primary_match_token(name)
     stripped = name.to_s.sub(/\A(?:unnamed|unknown)\s+/i, "")
     tokens = stripped.split(/\s+/).reject { |token| token.match?(/\A(?:the|a|an|at)\z/i) }
-    significant = tokens.select { |token| token.gsub(/[^a-z0-9]/i, "").length >= 4 }
+    significant = tokens.select do |token|
+      word = token.gsub(/[^a-z0-9]/i, "")
+      word.length >= 4 && !GENERIC_NAME_TOKENS.include?(word.downcase)
+    end
     return nil if significant.empty?
 
     return significant.first if name.match?(/\A(?:unnamed|unknown)\s+/i)

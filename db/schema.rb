@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_23_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -79,6 +79,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
     t.date "order_date"
   end
 
+  create_table "outro_videos", force: :cascade do |t|
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "products", primary_key: "product_id", id: :serial, force: :cascade do |t|
     t.string "product_name", limit: 255
     t.integer "category_id"
@@ -103,6 +109,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
     t.string "leonardo_video_url"
     t.integer "image_prompt_rewrite_count", default: 0, null: false
     t.boolean "audio_too_long", default: false, null: false
+    t.string "start_frame_gen_id"
+    t.string "start_frame_image_id"
+    t.string "start_frame_image_type"
   end
 
   create_table "sources", force: :cascade do |t|
@@ -126,6 +135,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
     t.string "image_generation_seed"
     t.string "video_generation_model"
     t.string "character_seed_image_url"
+    t.string "character_seed_image_id"
+    t.boolean "auto_produce", default: true, null: false
+    t.string "queue_state", default: "queued", null: false
+    t.datetime "queued_at"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "last_error"
+    t.index ["queue_state", "queued_at"], name: "index_stories_on_queue_state_and_queued_at"
     t.index ["source_id"], name: "index_stories_on_source_id"
     t.index ["story_type_id"], name: "index_stories_on_story_type_id"
   end
@@ -144,6 +161,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
     t.integer "output_height", null: false
     t.string "voice_id", default: "HIGUfNOdjuWQwwapnTRW", null: false
     t.text "visual_style"
+    t.bigint "outro_video_id"
+    t.jsonb "brand_assets", default: {}, null: false
+    t.jsonb "cast", default: [], null: false
+    t.boolean "extend_cast", default: false, null: false
+    t.jsonb "render_settings", default: {}, null: false
+    t.index ["outro_video_id"], name: "index_story_types_on_outro_video_id"
   end
 
   create_table "testproducts", primary_key: "testproduct_id", id: :serial, force: :cascade do |t|
@@ -163,4 +186,5 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_19_120000) do
   add_foreign_key "sources", "users"
   add_foreign_key "stories", "sources"
   add_foreign_key "stories", "story_types"
+  add_foreign_key "story_types", "outro_videos"
 end

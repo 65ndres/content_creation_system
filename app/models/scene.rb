@@ -23,7 +23,7 @@ class Scene < ApplicationRecord
 
   def leonardo_generation_in_flight?
     if story.leonardo_direct_video?
-      leonardo_video_gen_id.present? && !video_ready?
+      (leonardo_video_gen_id.present? || start_frame_gen_id.present?) && !video_ready?
     else
       Array(images_data).any? { |image_data| image_data["leonardo_image_gen_id"].present? } && !video_ready?
     end
@@ -54,6 +54,12 @@ class Scene < ApplicationRecord
     self.images_data = []
     self.merged_audio_video_url = nil
     self.merged_audio_video_gen_id = nil
+    # A new prompt needs a new first frame (a brand end card keeps its uploaded one).
+    unless start_frame_image_type == "UPLOADED"
+      self.start_frame_gen_id = nil
+      self.start_frame_image_id = nil
+      self.start_frame_image_type = nil
+    end
   end
 
   def regenerate_leonardo_generation!(prompt: nil)

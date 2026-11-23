@@ -1,0 +1,74 @@
+<% content_for :title, @story_type.name %>
+<% outro = @story_type.outro_video %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Story type #<%= @story_type.id %></p>
+    <h1><%= @story_type.name %></h1>
+  </div>
+  <%= link_to "All story types", story_types_path, class: "btn" %>
+</header>
+
+<section class="summary">
+  <% if notice.present? %>
+    <p class="is-success"><%= notice %></p>
+  <% end %>
+  <% if alert.present? %>
+    <p class="is-error"><%= alert %></p>
+  <% end %>
+
+  <h2 class="section-title">Outro video</h2>
+  <div class="outro-picker">
+    <% if outro&.video&.attached? %>
+      <video src="<%= rails_blob_path(outro.video) %>" controls preload="metadata" playsinline></video>
+    <% else %>
+      <div class="outro-empty muted"><%= outro ? "The video file for this outro is missing." : "No outro. Videos of this type end after the last scene." %></div>
+    <% end %>
+
+    <div class="outro-controls">
+      <% if outro %>
+        <p><strong><%= outro.name %></strong><br><span class="muted">Plays at the end of every new video of this type.</span></p>
+      <% end %>
+
+      <%= form_with url: story_type_outro_path(@story_type), method: :post, local: true do %>
+        <label class="field-label" for="outro_video_id"><%= outro ? "Change outro" : "Attach an outro" %></label>
+        <%= select_tag :outro_video_id,
+              options_for_select([ [ "None", "" ] ] + @outro_videos.map { |o| [ o.name, o.id ] }, outro&.id),
+              class: "select" %>
+        <div class="outro-actions">
+          <%= submit_tag "Save outro", class: "btn btn-primary", disabled: @outro_videos.empty? && outro.nil? %>
+        </div>
+      <% end %>
+
+      <% if outro %>
+        <%= button_to "Remove outro", story_type_outro_path(@story_type), method: :post,
+              params: { outro_video_id: "" }, class: "btn" %>
+      <% end %>
+
+      <p class="muted">
+        <% if @outro_videos.empty? %>No outro videos uploaded yet.<% end %>
+        <%= link_to "Upload an outro", outro_videos_path %>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="summary detail-list">
+  <h2 class="section-title">Details</h2>
+  <dl>
+    <dt>Stories</dt><dd><%= @story_count %></dd>
+    <dt>Voice ID</dt><dd><code><%= @story_type.voice_id %></code></dd>
+    <dt>Image size</dt><dd><%= @story_type.image_width %>×<%= @story_type.image_height %></dd>
+    <dt>Output size</dt><dd><%= @story_type.output_width %>×<%= @story_type.output_height %></dd>
+    <dt>Scene text</dt><dd><%= @story_type.scene_text_min_chars %>–<%= @story_type.scene_text_max_chars %> characters</dd>
+    <dt>Created</dt><dd><%= @story_type.created_at.strftime("%b %-d, %Y") %></dd>
+  </dl>
+
+  <% { "Visual style" => @story_type.visual_style, "Story prompt" => @story_type.story_prompt_text, "Scenes prompt" => @story_type.scenes_json_prompts }.each do |label, text| %>
+    <% next if text.blank? %>
+    <details class="prompt-block">
+      <summary><%= label %></summary>
+      <pre><%= text %></pre>
+    </details>
+  <% end %>
+</section>

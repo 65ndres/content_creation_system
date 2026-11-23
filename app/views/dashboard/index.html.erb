@@ -8,6 +8,37 @@
   <%= link_to "New story", new_story_path, class: "btn btn-primary" %>
 </header>
 
+<% if @running.any? || @waiting.any? || @failed.any? %>
+  <section class="queue-panel" aria-label="Story queue">
+    <% [ [ "Running", @running ], [ "Up next", @waiting ], [ "Failed", @failed ] ].each do |label, stories| %>
+      <% next if stories.empty? %>
+      <div class="queue-group">
+        <p class="field-label"><%= label %></p>
+        <ol class="queue-list">
+          <% stories.each do |story| %>
+            <li class="queue-item">
+              <%= link_to story_path(story), class: "queue-name" do %>
+                <span class="story-id">#<%= story.id %></span>
+                <span><%= story.story_type&.name.presence || "Untitled" %></span>
+              <% end %>
+              <% if story.queue_failed? && story.last_error.present? %>
+                <span class="muted queue-error"><%= story.last_error %></span>
+              <% elsif story.queue_running? && story.started_at %>
+                <span class="muted">started <%= time_ago_in_words(story.started_at) %> ago</span>
+              <% end %>
+              <% if story.queue_failed? %>
+                <%= button_to "Retry", retry_story_path(story), method: :post, class: "btn btn-small" %>
+              <% else %>
+                <%= button_to "Cancel", cancel_story_path(story), method: :post, class: "btn btn-small" %>
+              <% end %>
+            </li>
+          <% end %>
+        </ol>
+      </div>
+    <% end %>
+  </section>
+<% end %>
+
 <% if @stories.empty? %>
   <section class="empty">
     <p>No stories yet.</p>

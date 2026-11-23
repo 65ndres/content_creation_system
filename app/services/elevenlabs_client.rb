@@ -33,11 +33,12 @@ class ElevenlabsClient
     data             = {}
     data[:text]      = scene.text
     data[:model_id]  = MODEL_ID
-    # Neighbouring narration keeps intonation continuous across scene boundaries,
+    # Previous narration keeps intonation continuous across scene boundaries,
     # so the story reads as one voice-over instead of separate clips.
-    previous_text, next_text = neighbouring_texts(scene)
+    # next_text is deliberately not sent: the model sometimes speaks its first
+    # words, leaking the next scene's narration into this scene's audio.
+    previous_text = previous_narration(scene)
     data[:previous_text] = previous_text if previous_text.present?
-    data[:next_text]     = next_text if next_text.present?
 
     options           = {}
     options[:headers] = headers
@@ -57,13 +58,11 @@ class ElevenlabsClient
   end
   private_class_method :generate_audio_bytes
 
-  def self.neighbouring_texts(scene)
-    siblings = Scene.where(story_id: scene.story_id).order(:id)
-    previous_text = siblings.where("id < ?", scene.id).last(2).map(&:text).join(" ")
-    next_text     = siblings.where("id > ?", scene.id).first(2).map(&:text).join(" ")
-    [ previous_text.strip, next_text.strip ]
+  def self.previous_narration(scene)
+    Scene.where(story_id: scene.story_id).where("id < ?", scene.id)
+         .order(:id).last(2).map(&:text).join(" ").strip
   end
-  private_class_method :neighbouring_texts
+  private_class_method :previous_narration
 
   def self.assign_audio_too_long!(scene, value)
     Scene.refresh_audio_too_long_column!

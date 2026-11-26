@@ -1,9 +1,9 @@
-require 'json'
-require 'open3'
+require "json"
+require "open3"
 
 class ChatGPTClient
-  RESPONSES_URL = 'https://api.openai.com/v1/responses'.freeze
-  CHAT_MODEL      = ENV.fetch('OPENAI_CHAT_MODEL', 'gpt-5.5').freeze
+  RESPONSES_URL = "https://api.openai.com/v1/responses".freeze
+  CHAT_MODEL      = ENV.fetch("OPENAI_CHAT_MODEL", "gpt-5.5").freeze
 
   def self.generate_source_text(prompt)
     responses_request(prompt.to_s)
@@ -75,7 +75,7 @@ class ChatGPTClient
     AI image and video generation. alwys include age or age range, build, face, hair type, hair color, skin tone where
     relevant, typical clothing, and distinguishing features.
     Do not add special characters, keep it simple and clean.
-    
+
     Return ONLY valid JSON with no markdown fences or commentary. Use this structure:
     { "characters": [ { "name": "Character Name", "physical_description": "Very detailed description..." } ] }
   PROMPT
@@ -167,7 +167,7 @@ class ChatGPTClient
 
   def self.generate_scene_images_prompts(story)
     story_type = story.story_type
-    input = story_type.scenes_json_prompts.to_s + ' ' + story.text.to_s
+    input = story_type.scenes_json_prompts.to_s + " " + story.text.to_s
     if story.characters.present? && !story.leonardo_direct_video?
       input += character_reference_block(story)
     end
@@ -210,16 +210,16 @@ class ChatGPTClient
   private_class_method :scene_text_length_block
 
   def self.responses_request(input)
-    api_key = ENV['OPENAI_API_KEY'].presence || ENV['CHATGPT_KEY']
-    raise KeyError, 'Set OPENAI_API_KEY or CHATGPT_KEY' if api_key.blank?
+    api_key = ENV["OPENAI_API_KEY"].presence || ENV["CHATGPT_KEY"]
+    raise KeyError, "Set OPENAI_API_KEY or CHATGPT_KEY" if api_key.blank?
 
-    body = { 'model' => CHAT_MODEL, 'input' => input }
+    body = { "model" => CHAT_MODEL, "input" => input }
     cmd  = [
-      'curl', '-sS', '-f',
+      "curl", "-sS", "-f",
       RESPONSES_URL,
-      '-H', 'Content-Type: application/json',
-      '-H', "Authorization: Bearer #{api_key}",
-      '-d', body.to_json
+      "-H", "Content-Type: application/json",
+      "-H", "Authorization: Bearer #{api_key}",
+      "-d", body.to_json
     ]
 
     stdout, stderr, status = Open3.capture3(*cmd)
@@ -229,13 +229,13 @@ class ChatGPTClient
     end
 
     parsed = JSON.parse(stdout)
-    if parsed['error'].present?
+    if parsed["error"].present?
       Rails.logger.error("ChatGPTClient API error: #{parsed['error']}")
-      raise parsed['error'].to_json
+      raise parsed["error"].to_json
     end
 
     text = extract_responses_output_text(parsed)
-    raise 'Empty model output' if text.blank?
+    raise "Empty model output" if text.blank?
 
     text
   rescue JSON::ParserError => e
@@ -246,24 +246,24 @@ class ChatGPTClient
   def self.extract_responses_output_text(parsed)
     return unless parsed.is_a?(Hash)
 
-    if parsed['output_text'].is_a?(String) && parsed['output_text'].present?
-      return parsed['output_text']
+    if parsed["output_text"].is_a?(String) && parsed["output_text"].present?
+      return parsed["output_text"]
     end
 
-    output = parsed['output']
+    output = parsed["output"]
     return unless output.is_a?(Array)
 
     texts = []
     output.each do |item|
-      next unless item.is_a?(Hash) && item['type'] == 'message'
+      next unless item.is_a?(Hash) && item["type"] == "message"
 
-      Array(item['content']).each do |part|
+      Array(item["content"]).each do |part|
         next unless part.is_a?(Hash)
 
-        if part['type'] == 'output_text' && part['text'].present?
-          texts << part['text']
-        elsif part['text'].present?
-          texts << part['text']
+        if part["type"] == "output_text" && part["text"].present?
+          texts << part["text"]
+        elsif part["text"].present?
+          texts << part["text"]
         end
       end
     end
@@ -272,4 +272,3 @@ class ChatGPTClient
   end
   private_class_method :extract_responses_output_text
 end
-

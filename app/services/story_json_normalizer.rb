@@ -5,10 +5,10 @@ class StoryJsonNormalizer
 
   def self.normalize_pairs(data)
     pairs = case data
-            when Hash then data["pairs"] || data[:pairs]
-            when Array then data
-            else []
-            end
+    when Hash then data["pairs"] || data[:pairs]
+    when Array then data
+    else []
+    end
 
     pairs = pairs.values if pairs.is_a?(Hash)
     return [] unless pairs.is_a?(Array)
@@ -35,7 +35,7 @@ class StoryJsonNormalizer
 
   def self.normalize_ai_image_prompts(value)
     case value
-    when String then [value]
+    when String then [ value ]
     when Array then value.map(&:to_s).reject(&:blank?)
     else []
     end
@@ -46,7 +46,7 @@ class StoryJsonNormalizer
     when Array
       value.each_with_index.filter_map { |item, i| normalize_character_entry(item, i) }
     when Hash
-      value.map { |name, desc| normalize_character_entry([name, desc], nil) }.compact
+      value.map { |name, desc| normalize_character_entry([ name, desc ], nil) }.compact
     else
       []
     end
@@ -68,10 +68,10 @@ class StoryJsonNormalizer
 
     main = normalized.first
     others = normalized.drop(1).sort_by.with_index do |character, index|
-      [-character_mention_count(character["name"], text.to_s), index]
+      [ -character_mention_count(character["name"], text.to_s), index ]
     end
 
-    [main, *others.first(limit - 1)]
+    [ main, *others.first(limit - 1) ]
   end
 
   def self.character_name_mentioned?(name, haystack)

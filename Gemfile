@@ -10,16 +10,16 @@ gem "puma", ">= 5.0"
 # gem "jbuilder"
 # Use Redis adapter to run Action Cable in production
 # gem "redis", ">= 4.0.1"
-gem 'sidekiq'
+gem "sidekiq"
 # Pin erb to Ruby 3.2 default; avoids conflict with globally installed erb 5.x/6.x
-gem 'erb', '~> 4.0'
+gem "erb", "~> 4.0"
 # Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
 # gem "kredis"
-gem 'httparty'
+gem "httparty"
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
-gem 'chatgpt-ruby'
-gem 'aws-sdk-s3'
+gem "chatgpt-ruby"
+gem "aws-sdk-s3"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
@@ -45,8 +45,3 @@ group :development, :test do
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
 end
-
-
-
-
-

@@ -1,8 +1,7 @@
-require 'uri'
-require 'net/http'
+require "uri"
+require "net/http"
 
 class LeonardoClient
-
   GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
   MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
   V2_GENERATION_ENDPOINT    = "https://cloud.leonardo.ai/api/rest/v2/generations"
@@ -271,7 +270,7 @@ class LeonardoClient
 
   #     if data["generations_by_pk"].present? && data["generations_by_pk"]["status"] == "COMPLETE"
   #       image_data.merge!({"motion_url": data["generations_by_pk"]["generated_images"][0]["motionMP4URL"]})
-  #     else   
+  #     else
   #       CheckSceneMotionImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
   #     end
   #   end
@@ -322,7 +321,7 @@ class LeonardoClient
   end
   private_class_method :assign_scene_video_url
 
-  def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)
+  def self.generate_asset(payload, endpoint = GENERATION_ENDPOINT)
     begin
       headers                   = {}
       headers["Accept"]        = "application/json"
@@ -601,7 +600,7 @@ class LeonardoClient
   private_class_method :truncate_hailuo_prompt
 
   def self.log_http_call(method, endpoint, body: nil, response: nil)
-    parts = ["Leonardo #{method} #{endpoint}"]
+    parts = [ "Leonardo #{method} #{endpoint}" ]
     parts << "body=#{body.to_json}" if body
     if response
       status = response.respond_to?(:code) ? response.code : nil
@@ -667,7 +666,7 @@ class LeonardoClient
         "height"         => height,
         "prompt"         => finalize_image_prompt(prompt, MAX_NANO_BANANA_PROMPT_LENGTH),
         "quantity"       => 1,
-        "style_ids"      => [DYNAMIC_STYLE_UUID],
+        "style_ids"      => [ DYNAMIC_STYLE_UUID ],
         "prompt_enhance" => "OFF"
       }
       parameters["seed"] = seed_value if seed_value
@@ -843,7 +842,7 @@ class LeonardoClient
       video = video.respond_to?(:stringify_keys) ? video.stringify_keys : video
       next unless video.is_a?(Hash)
 
-      candidates.concat([video["url"], video["src"], video["motionMP4URL"], video["motion_mp4_url"]])
+      candidates.concat([ video["url"], video["src"], video["motionMP4URL"], video["motion_mp4_url"] ])
     end
 
     urls = candidates.map(&:presence).compact
@@ -919,15 +918,15 @@ class LeonardoClient
   def self.hailuo_video_dimensions(image_width, image_height)
     w = image_width.to_i
     h = image_height.to_i
-    return [1920, 1080, "RESOLUTION_1080"] if w <= 0 || h <= 0
+    return [ 1920, 1080, "RESOLUTION_1080" ] if w <= 0 || h <= 0
 
     ratio = w.to_f / h
     if ratio >= 1.34
-      [1920, 1080, "RESOLUTION_1080"]      # 16:9
+      [ 1920, 1080, "RESOLUTION_1080" ]      # 16:9
     elsif ratio <= 0.75
-      [1080, 1920, "RESOLUTION_1080"]      # 9:16
+      [ 1080, 1920, "RESOLUTION_1080" ]      # 9:16
     else
-      [1080, 1080, "RESOLUTION_1080"]      # 1:1
+      [ 1080, 1080, "RESOLUTION_1080" ]      # 1:1
     end
   end
 
@@ -941,7 +940,7 @@ class LeonardoClient
         payload["motionStrength"] = 4
         response                  = generate_asset(payload, MOTION_ENDPOINT)
         Rails.logger.info("Leonardo create_scene_motion_images scene=#{scene.id} response=#{response.inspect&.slice(0, 500)}")
-        image_data.merge!({ "leonardo_motion_image_gen_id": response["motionSvdGenerationJob"]["generationId"]})
+        image_data.merge!({ "leonardo_motion_image_gen_id": response["motionSvdGenerationJob"]["generationId"] })
       rescue => e
         Rails.logger.error("Leonardo create_scene_motion_images scene=#{scene.id}: #{e.message}")
         scene.save
@@ -956,7 +955,5 @@ class LeonardoClient
     else
       Rails.logger.error("Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count scene=#{scene.id}")
     end
-
   end
-
 end

@@ -5,7 +5,7 @@
 #       if !ENV.has_key?(env_var) || ENV[env_var].blank?
 #         raise <<~EOL
 #         Missing environment variable: #{env_var}
-  
+
 #         Ask a teammate for the appropriate value.
 #         EOL
 #       end

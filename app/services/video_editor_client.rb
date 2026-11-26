@@ -2,7 +2,6 @@ require "base64"
 require "httparty"
 
 class VideoEditorClient
-
   VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
   RENDER_SETTING_KEYS = %w[fill_output caption_center_y caption_margin_right].freeze
 
@@ -342,5 +341,4 @@ class VideoEditorClient
     response["body"]
   end
   private_class_method :response_body
-
 end

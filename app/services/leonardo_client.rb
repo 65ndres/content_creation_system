@@ -26,8 +26,16 @@ class LeonardoClient
   DYNAMIC_STYLE_UUID      = "111dc692-d470-4eec-b791-3475abac4c46"
   DEFAULT_IMAGE_MODEL     = "lucid"
   NANO_BANANA_2_MODEL     = "nano-banana-2"
-  NANO_BANANA_2_WIDTH     = 848
-  NANO_BANANA_2_HEIGHT    = 1264
+  # Scene images at 2K (https://docs.leonardo.ai/docs/nano-banana-2), in the
+  # story type's orientation: 9:16 reels fill the phone screen on TikTok and
+  # Instagram, 16:9 fills a landscape video, and both stay sharp after being
+  # scaled down to the output size. Each pair must match the docs table
+  # exactly or the model silently falls back to 1:1.
+  NANO_BANANA_2_SIZES     = {
+    portrait:  [ 1536, 2752 ], # 9:16
+    landscape: [ 2752, 1536 ], # 16:9
+    square:    [ 2048, 2048 ]  # 1:1
+  }.freeze
   # 9:16 at 1K (https://docs.leonardo.ai/docs/nano-banana-2); close to Wan's 720x1280.
   NANO_BANANA_2_FRAME_WIDTH  = 768
   NANO_BANANA_2_FRAME_HEIGHT = 1376
@@ -633,13 +641,30 @@ class LeonardoClient
   end
   private_class_method :finalize_image_prompt
 
+  # Picks the Nano Banana 2 size matching the story type's image orientation
+  # (portrait when the story type has no usable size).
+  def self.nano_banana_2_size(story_type)
+    width  = story_type&.image_width.to_i
+    height = story_type&.image_height.to_i
+    orientation = if width.positive? && height.positive? && width > height
+      :landscape
+    elsif width.positive? && width == height
+      :square
+    else
+      :portrait
+    end
+    NANO_BANANA_2_SIZES.fetch(orientation)
+  end
+  private_class_method :nano_banana_2_size
+
   def self.image_generation_payload(model, prompt, story_type, seed: nil)
     model = normalize_image_model(model)
     seed_value = integer_seed(seed)
     if model == NANO_BANANA_2_MODEL
+      width, height = nano_banana_2_size(story_type)
       parameters = {
-        "width"          => NANO_BANANA_2_WIDTH,
-        "height"         => NANO_BANANA_2_HEIGHT,
+        "width"          => width,
+        "height"         => height,
         "prompt"         => finalize_image_prompt(prompt, MAX_NANO_BANANA_PROMPT_LENGTH),
         "quantity"       => 1,
         "style_ids"      => [DYNAMIC_STYLE_UUID],

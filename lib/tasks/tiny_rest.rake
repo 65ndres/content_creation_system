@@ -15,7 +15,7 @@
 # Defaults: Nano Banana 2 draws the character seed; each scene opens on a Nano Banana 2 frame that uses
 # the seed (and, when the narration names Tiny Rest, the app's unicorn and sky art) as references;
 # Wan 2.6 animates from that frame. Both story types end with the "Tiny Rest" outro video (logo, App Store
-# and like & follow calls to action; see video_editor/outro/render_tinyrest_outro.py), so no scene is an end card.
+# and like & follow calls to action; TinyRest::OUTRO_NAME, set by setup), so no scene is an end card.
 #
 # setup is idempotent; start_3am creates a new Story each run.
 module TinyRest
@@ -231,9 +231,17 @@ module TinyRest
     Scene: Mom gently lays Baby on its back in a bassinet with a fitted sheet only, Unicorn sprinkles paper stars over the room, Mom climbs into bed, the lamp dims, the camera pulls back to the paper house under a starry sky.
   SOURCE
 
+  # The uploaded end card (logo, official App Store badge, like & follow) every Tiny Rest video ends on.
+  OUTRO_NAME = "Tiny Rest (App Store badge)".freeze
+
+  def self.outro_video
+    OutroVideo.find_by(name: OUTRO_NAME)
+  end
+
   def self.story_type!(key = :nursery)
     config = STORY_TYPES.fetch(key)
     type = StoryType.find_or_initialize_by(name: config[:name])
+    type.outro_video = outro_video || type.outro_video
     type.assign_attributes(
       story_prompt_text: config[:story_prompt_text],
       scenes_json_prompts: config[:scenes_json_prompts],

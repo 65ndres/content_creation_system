@@ -146,6 +146,20 @@ class LeonardoClientTest < ActiveSupport::TestCase
     assert_equal "img-42", story.reload.character_seed_image_id
   end
 
+  test "Nano Banana 2 scene images follow the story type orientation at 2K" do
+    sizes = {
+      [ 576, 1024 ] => [ 1536, 2752 ],
+      [ 1024, 576 ] => [ 2752, 1536 ],
+      [ 1024, 1024 ] => [ 2048, 2048 ]
+    }
+
+    sizes.each do |(width, height), expected|
+      story_type = StoryType.new(image_width: width, image_height: height)
+      payload = LeonardoClient.send(:image_generation_payload, "nano-banana-2", "A quiet hill.", story_type)
+      assert_equal expected, [ payload.dig("parameters", "width"), payload.dig("parameters", "height") ]
+    end
+  end
+
   test "direct video scenes first request a Nano Banana 2 frame that references the character seed" do
     scene = direct_video_scene(text: "It's 3 AM.")
     sent = nil

@@ -291,8 +291,7 @@ module TinyRest
   end
 
   def self.source!
-    user = User.first or abort("No user exists yet. Run bin/rails db:seed first.")
-    source = Source.where("text LIKE ?", "#{SOURCE_MARKER}%").first || user.sources.new
+    source = Source.where("text LIKE ?", "#{SOURCE_MARKER}%").first || Source.new
     source.update!(text: SOURCE_TEXT)
     source
   end

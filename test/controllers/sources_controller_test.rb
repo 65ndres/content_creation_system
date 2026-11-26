@@ -18,14 +18,13 @@ class SourcesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Type something before sending it to ChatGPT.", JSON.parse(response.body)["error"]
   end
 
-  test "create saves a source for the first user" do
+  test "create saves a source" do
     assert_difference("Source.count", 1) do
       post sources_url, params: { text: "saved source text" }, as: :json
     end
 
     source = Source.order(:id).last
     assert_response :success
-    assert_equal User.first.id, source.user_id
     assert_equal "saved source text", source.text
   end
 end

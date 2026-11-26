@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_23_150000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_26_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -116,10 +116,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_23_150000) do
 
   create_table "sources", force: :cascade do |t|
     t.text "text"
-    t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["user_id"], name: "index_sources_on_user_id"
   end
 
   create_table "stories", force: :cascade do |t|
@@ -183,7 +181,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_23_150000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "sources", "users"
   add_foreign_key "stories", "sources"
   add_foreign_key "stories", "story_types"
   add_foreign_key "story_types", "outro_videos"

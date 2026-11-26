@@ -21,12 +21,7 @@ class SourcesController < ActionController::Base
       return render json: { error: "Source text is empty." }, status: :unprocessable_entity
     end
 
-    user = User.first
-    unless user
-      return render json: { error: "No user exists yet. Run db:seed first." }, status: :unprocessable_entity
-    end
-
-    source = user.sources.create!(text: text)
+    source = Source.create!(text: text)
     render json: { id: source.id }
   rescue StandardError => e
     Rails.logger.error("SourcesController#create failed: #{e.message}")

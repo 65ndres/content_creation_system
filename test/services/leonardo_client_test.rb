@@ -56,6 +56,211 @@ class LeonardoClientTest < ActiveSupport::TestCase
     assert_includes prompt, "Retro 1980s anime-style screen-print illustration, thin black ink linework."
   end
 
+  def direct_video_scene(text:, seed_id: "seed-img-1", brand_assets: {})
+    story = stories(:one)
+    story.update_columns(video_generation_model: "wan-2.6", image_generation_seed: "777", character_seed_image_id: seed_id, characters: [])
+    story.story_type.update_columns(brand_assets: brand_assets)
+    scene = scenes(:one)
+    scene.update_columns(
+      story_id: story.id, text: text, ai_image_prompt: [ "Mom rocks in a paper chair." ],
+      leonardo_video_gen_id: nil, leonardo_video_url: nil, video_url: nil,
+      start_frame_gen_id: nil, start_frame_image_id: nil, start_frame_image_type: nil
+    )
+    scene.reload
+  end
+
+  test "running out of credits leaves the prompts alone" do
+    scene = direct_video_scene(text: "It's 3 AM.")
+    scene.update_columns(start_frame_image_id: "frame", start_frame_image_type: "GENERATED", image_prompt_rewrite_count: 0)
+    broke = [ { "extensions" => { "code" => "HttpException", "statusCode" => 402 }, "message" => "Insufficient tokens" } ]
+
+    LeonardoClient.stub(:generate_video, broke) do
+      ChatGPTClient.stub(:soften_image_prompts, ->(*) { flunk "prompts softened for a billing error" }) do
+        LeonardoClient.generate_scene_video(scene)
+      end
+    end
+
+    scene.reload
+    assert_equal 0, scene.image_prompt_rewrite_count
+    assert_equal [ "Mom rocks in a paper chair." ], StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt)
+    assert_nil scene.leonardo_video_gen_id
+  end
+
+  test "long narration gets a 10 second Wan clip" do
+    short = direct_video_scene(text: "Less guessing. More rest. For both of you.")
+    assert_equal 5, LeonardoClient.send(:wan_video_payload, short).dig("parameters", "duration")
+
+    long = direct_video_scene(text: "So give your dragon a very dark room, steady white noise, and the same calm routine every night.")
+    assert_equal 10, LeonardoClient.send(:wan_video_payload, long).dig("parameters", "duration")
+  end
+
+  test "an image flagged nsfw that still has a url is kept, not regenerated" do
+    scene = scenes(:one)
+    scene.update_columns(images_data: [ { "leonardo_image_gen_id" => "img-gen", "api" => "v2" } ], images_total: 1,
+                         image_prompt_rewrite_count: 0, ai_image_prompt: [ "Baby asleep in a stroller." ])
+    payload = { "generations_by_pk" => {
+      "status" => "COMPLETE",
+      "generated_images" => [ { "id" => "img-1", "url" => "https://cdn.leonardo.ai/baby.jpg", "nsfw" => true } ],
+      "prompt_moderations" => [ { "moderationClassification" => [ "NSFW", "CHILD" ] } ]
+    } }
+
+    LeonardoClient.stub(:check_asset_generation_status, payload) do
+      ChatGPTClient.stub(:soften_image_prompts, ->(*) { flunk "a usable image was regenerated" }) do
+        LeonardoClient.check_scene_images_generation_status(scene)
+      end
+    end
+
+    scene.reload
+    assert_equal "https://cdn.leonardo.ai/baby.jpg", scene.images_data.first["static_url"]
+    assert_equal 0, scene.image_prompt_rewrite_count
+  end
+
+  test "a moderation tag on a running video is not treated as blocked" do
+    scene = direct_video_scene(text: "It's 3 AM.")
+    scene.update_columns(leonardo_video_gen_id: "vid-gen", image_prompt_rewrite_count: 0)
+    payload = { "generations_by_pk" => {
+      "status" => "PENDING", "generated_images" => [],
+      "prompt_moderations" => [ { "moderationClassification" => [ "CHILD" ] } ]
+    } }
+
+    LeonardoClient.stub(:check_asset_generation_status, payload) do
+      ChatGPTClient.stub(:soften_image_prompts, ->(*) { flunk "prompts softened while the video was still generating" }) do
+        assert_enqueued_with(job: CheckLeonardoSceneVideoGenerationStatusJob) do
+          LeonardoClient.check_leonardo_scene_video_generation_status(scene)
+        end
+      end
+    end
+
+    assert_equal "vid-gen", scene.reload.leonardo_video_gen_id
+  end
+
+  test "character seed status stores the seed image id" do
+    story = stories(:one)
+    story.update_columns(character_seed_image_id: nil)
+    payload = { "generations_by_pk" => { "status" => "COMPLETE", "seed" => 1, "generated_images" => [ { "id" => "img-42", "url" => "https://x/seed.jpg" } ] } }
+
+    LeonardoClient.stub(:check_asset_generation_status, payload) do
+      LeonardoClient.check_character_seed_generation_status(story, "gen")
+    end
+
+    assert_equal "img-42", story.reload.character_seed_image_id
+  end
+
+  test "Nano Banana 2 scene images follow the story type orientation at 2K" do
+    sizes = {
+      [ 576, 1024 ] => [ 1536, 2752 ],
+      [ 1024, 576 ] => [ 2752, 1536 ],
+      [ 1024, 1024 ] => [ 2048, 2048 ]
+    }
+
+    sizes.each do |(width, height), expected|
+      story_type = StoryType.new(image_width: width, image_height: height)
+      payload = LeonardoClient.send(:image_generation_payload, "nano-banana-2", "A quiet hill.", story_type)
+      assert_equal expected, [ payload.dig("parameters", "width"), payload.dig("parameters", "height") ]
+    end
+  end
+
+  test "direct video scenes first request a Nano Banana 2 frame that references the character seed" do
+    scene = direct_video_scene(text: "It's 3 AM.")
+    sent = nil
+
+    LeonardoClient.stub(:generate_asset, ->(payload, _endpoint) { sent = payload; { "generate" => { "generationId" => "frame-gen" } } }) do
+      LeonardoClient.stub(:generate_video, ->(_) { flunk "video requested before its first frame" }) do
+        assert_enqueued_with(job: CheckSceneStartFrameStatusJob) do
+          LeonardoClient.generate_scene_video(scene)
+        end
+      end
+    end
+
+    assert_equal "nano-banana-2", sent["model"]
+    assert_equal 777, sent.dig("parameters", "seed")
+    assert_equal [ { "image" => { "id" => "seed-img-1", "type" => "GENERATED" }, "strength" => "HIGH" } ],
+                 sent.dig("parameters", "guidances", "image_reference")
+    assert_equal "frame-gen", scene.reload.start_frame_gen_id
+  end
+
+  test "brand scenes add the app art as references" do
+    assets = { "keywords" => [ "Tiny Rest" ], "references" => [ { "label" => "unicorn", "id" => "up-unicorn" } ] }
+    scene = direct_video_scene(text: "Tiny Rest keeps track for you.", brand_assets: assets)
+    scene.story.scenes.create!(text: "A later scene.", ai_image_prompt: [ "p" ]) # so this one is not the end card
+    sent = nil
+
+    LeonardoClient.stub(:generate_asset, ->(payload, _endpoint) { sent = payload; { "generate" => { "generationId" => "g" } } }) do
+      LeonardoClient.send(:prepare_scene_start_frame, scene)
+    end
+
+    ids = sent.dig("parameters", "guidances", "image_reference").map { |ref| [ ref.dig("image", "id"), ref.dig("image", "type") ] }
+    assert_equal [ [ "seed-img-1", "GENERATED" ], [ "up-unicorn", "UPLOADED" ] ], ids
+  end
+
+  test "the last brand scene opens on the uploaded end card" do
+    assets = { "keywords" => [ "Tiny Rest" ], "end_card_id" => "up-end-card" }
+    scene = direct_video_scene(text: "Tiny Rest. Calmer days start with better rest.", brand_assets: assets)
+    sent = nil
+
+    LeonardoClient.stub(:generate_asset, ->(*) { flunk "end card should not be generated" }) do
+      LeonardoClient.stub(:generate_video, ->(payload) { sent = payload; { "generate" => { "generationId" => "vid" } } }) do
+        LeonardoClient.generate_scene_video(scene)
+      end
+    end
+
+    assert_equal [ { "image" => { "id" => "up-end-card", "type" => "UPLOADED" } } ], sent.dig("parameters", "guidances", "start_frame")
+    assert_equal 777, sent.dig("parameters", "seed")
+  end
+
+  test "a finished first frame is sent to Wan as its start frame" do
+    scene = direct_video_scene(text: "It's 3 AM.")
+    scene.update_columns(start_frame_gen_id: "frame-gen")
+    payload = { "generations_by_pk" => { "status" => "COMPLETE", "generated_images" => [ { "id" => "frame-img", "url" => "https://x/f.jpg" } ] } }
+
+    LeonardoClient.stub(:check_asset_generation_status, payload) do
+      assert_enqueued_with(job: LeonardoCreateSceneVideoJob) do
+        LeonardoClient.check_scene_start_frame_status(scene)
+      end
+    end
+
+    sent = nil
+    LeonardoClient.stub(:generate_video, ->(body) { sent = body; { "generate" => { "generationId" => "vid" } } }) do
+      LeonardoClient.generate_scene_video(scene.reload)
+    end
+    assert_equal [ { "image" => { "id" => "frame-img", "type" => "GENERATED" } } ], sent.dig("parameters", "guidances", "start_frame")
+  end
+
+  test "direct video prompts carry the descriptions of characters in the scene" do
+    story = stories(:one)
+    story.update_columns(
+      video_generation_model: "wan-2.6",
+      characters: [
+        { "name" => "Mom", "physical_description" => "long dark wavy hair in a messy bun, oversized lavender sweater" },
+        { "name" => "Dad", "physical_description" => "short dark hair and a short beard, navy t-shirt" }
+      ]
+    )
+    scene = scenes(:one)
+    scene.update_columns(story_id: story.id, text: "It's 3 AM.", ai_image_prompt: [ "Mom rocks in a paper chair." ])
+
+    prompt = LeonardoClient.send(:build_scene_video_prompt, scene.reload)
+
+    assert prompt.start_with?("Mom rocks in a paper chair.")
+    assert_includes prompt, "- Mom: long dark wavy hair in a messy bun, oversized lavender sweater"
+    assert_not_includes prompt, "Dad"
+  end
+
+  test "direct video prompts trim the scene, not the characters, to fit the limit" do
+    story = stories(:one)
+    story.update_columns(
+      video_generation_model: "wan-2.6",
+      characters: [ { "name" => "Mom", "physical_description" => "oversized lavender sweater and soft gray joggers" } ]
+    )
+    scene = scenes(:one)
+    scene.update_columns(story_id: story.id, ai_image_prompt: [ "Mom sits by the window. " + ("Paper stars drift. " * 120) ])
+
+    prompt = LeonardoClient.send(:build_scene_video_prompt, scene.reload)
+
+    assert_operator prompt.length, :<=, LeonardoClient::MAX_HAILUO_PROMPT_LENGTH
+    assert_includes prompt, "- Mom: oversized lavender sweater and soft gray joggers"
+    assert prompt.end_with?("matches their physical description above.")
+  end
+
   test "generate_scene_video retries later when Leonardo is rate limited" do
     scene = scenes(:one)
     scene.update_columns(video_url: nil, leonardo_video_url: nil, leonardo_video_gen_id: nil)

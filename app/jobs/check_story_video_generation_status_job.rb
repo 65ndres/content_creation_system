@@ -1,6 +1,6 @@
 class CheckStoryVideoGenerationStatusJob < ApplicationJob
     queue_as :default
-  
+
     def perform(*args)
       story = args.first
       Rails.logger.info("CheckStoryVideoGenerationStatusJob story=#{story.id}")
@@ -9,4 +9,4 @@ class CheckStoryVideoGenerationStatusJob < ApplicationJob
         Rails.logger.info("Story video completed story=#{story.id}")
       end
     end
-  end
+end

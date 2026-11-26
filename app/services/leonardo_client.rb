@@ -1,8 +1,7 @@
-require 'uri'
-require 'net/http'
+require "uri"
+require "net/http"
 
 class LeonardoClient
-
   GENERATION_ENDPOINT       = "https://cloud.leonardo.ai/api/rest/v1/generations"
   MOTION_ENDPOINT           = "https://cloud.leonardo.ai/api/rest/v1/generations-motion-svd"
   V2_GENERATION_ENDPOINT    = "https://cloud.leonardo.ai/api/rest/v2/generations"
@@ -15,6 +14,10 @@ class LeonardoClient
   # See https://docs.leonardo.ai/docs/wan-26 — text-to-video, duration 5/10/15, 9:16 720x1280.
   WAN_VIDEO_MODEL         = "wan-2.6"
   DEFAULT_WAN_DURATION    = 5
+  LONG_WAN_DURATION       = 10
+  # Narration runs about 16 characters a second; past this a 5s clip would freeze on its
+  # last frame, so the scene gets a 10s clip (the editor cuts it to the voiceover).
+  WAN_LONG_SCENE_CHARS    = 75
   WAN_WIDTH               = 720
   WAN_HEIGHT              = 1280
   # Lucid Origin — current getting-started default. See https://docs.leonardo.ai/docs/getting-started
@@ -22,8 +25,22 @@ class LeonardoClient
   DYNAMIC_STYLE_UUID      = "111dc692-d470-4eec-b791-3475abac4c46"
   DEFAULT_IMAGE_MODEL     = "lucid"
   NANO_BANANA_2_MODEL     = "nano-banana-2"
-  NANO_BANANA_2_WIDTH     = 848
-  NANO_BANANA_2_HEIGHT    = 1264
+  # Scene images at 2K (https://docs.leonardo.ai/docs/nano-banana-2), in the
+  # story type's orientation: 9:16 reels fill the phone screen on TikTok and
+  # Instagram, 16:9 fills a landscape video, and both stay sharp after being
+  # scaled down to the output size. Each pair must match the docs table
+  # exactly or the model silently falls back to 1:1.
+  NANO_BANANA_2_SIZES     = {
+    portrait:  [ 1536, 2752 ], # 9:16
+    landscape: [ 2752, 1536 ], # 16:9
+    square:    [ 2048, 2048 ]  # 1:1
+  }.freeze
+  # 9:16 at 1K (https://docs.leonardo.ai/docs/nano-banana-2); close to Wan's 720x1280.
+  NANO_BANANA_2_FRAME_WIDTH  = 768
+  NANO_BANANA_2_FRAME_HEIGHT = 1376
+  MAX_NANO_BANANA_REFERENCES = 6
+  START_FRAME_SKIPPED        = "SKIPPED"
+  INIT_IMAGE_ENDPOINT        = "https://cloud.leonardo.ai/api/rest/v1/init-image"
   IMAGE_MODEL_ALIASES     = {
     "lucid"          => DEFAULT_IMAGE_MODEL,
     "lucid-origin"   => DEFAULT_IMAGE_MODEL,
@@ -73,6 +90,7 @@ class LeonardoClient
     endpoint   = image_generation_endpoint(model)
 
     rate_limited = false
+    out_of_credits = false
 
     StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).each_with_index do |prompt, i|
       # Already submitted on an earlier attempt (e.g. before a rate limit).
@@ -87,6 +105,10 @@ class LeonardoClient
         # same prompts later instead of rewriting them.
         if rate_limited_response?(response)
           rate_limited = true
+          break
+        end
+        if out_of_credits_response?(response)
+          out_of_credits = true
           break
         end
 
@@ -108,6 +130,8 @@ class LeonardoClient
     if rate_limited
       Rails.logger.warn("Leonardo generate_scene_images scene=#{scene.id}: rate limited, retrying later")
       CreateSceneImagesJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+    elsif out_of_credits
+      log_out_of_credits(scene)
     elsif scene.images_data.any? { |image_data| image_data["leonardo_image_gen_id"].present? }
       CheckSceneImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
     elsif rewrite_blocked_scene_prompts(scene)
@@ -163,6 +187,8 @@ class LeonardoClient
       attrs = {}
       attrs[:image_generation_seed] = seed.to_s if seed.present?
       attrs[:character_seed_image_url] = image_url if image_url.present?
+      # The image id lets later generations use the seed as an image reference.
+      attrs[:character_seed_image_id] = first_image["id"].to_s if first_image.is_a?(Hash) && first_image["id"].present?
       if attrs.any?
         story.update!(attrs)
         Rails.logger.info(
@@ -231,6 +257,7 @@ class LeonardoClient
       GenerateSceneVideoJob.perform_later(scene)
     elsif scene.video_url.blank? && scene.video_gen_id.blank?
       Rails.logger.error("Leonardo check_scene_images_generation_status scene=#{scene.id}: no stills to build video")
+      scene.story.fail_in_queue!("Scene ##{scene.id}: Leonardo made no images")
     end
   end
 
@@ -243,7 +270,7 @@ class LeonardoClient
 
   #     if data["generations_by_pk"].present? && data["generations_by_pk"]["status"] == "COMPLETE"
   #       image_data.merge!({"motion_url": data["generations_by_pk"]["generated_images"][0]["motionMP4URL"]})
-  #     else   
+  #     else
   #       CheckSceneMotionImagesGenerationStatusJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
   #     end
   #   end
@@ -272,6 +299,7 @@ class LeonardoClient
       end
 
       Rails.logger.error("Leonardo video generation failed for scene #{scene.id} gen_id=#{gen_id}")
+      scene.story.fail_in_queue!("Scene ##{scene.id}: Leonardo video failed")
       return
     end
 
@@ -293,7 +321,7 @@ class LeonardoClient
   end
   private_class_method :assign_scene_video_url
 
-  def self.generate_asset(payload, endpoint=GENERATION_ENDPOINT)
+  def self.generate_asset(payload, endpoint = GENERATION_ENDPOINT)
     begin
       headers                   = {}
       headers["Accept"]        = "application/json"
@@ -342,6 +370,8 @@ class LeonardoClient
       return
     end
 
+    return if prepare_scene_start_frame(scene) == :pending
+
     payload  = wan_video_payload(scene)
     response = generate_video(payload)
 
@@ -350,6 +380,7 @@ class LeonardoClient
       LeonardoCreateSceneVideoJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
       return
     end
+    return log_out_of_credits(scene) if out_of_credits_response?(response)
 
     generation_id = extract_generation_id(response)
     if generation_id.present?
@@ -363,9 +394,154 @@ class LeonardoClient
     end
   end
 
+  # Wan 2.6 takes one start_frame image and no references, so the character seed
+  # (and brand art) reaches the video through a Nano Banana 2 first frame.
+  # Returns :ready when the video can be requested now, :pending while a frame is generating.
+  def self.prepare_scene_start_frame(scene)
+    return :ready if scene.start_frame_image_id.present? || scene.start_frame_image_type == START_FRAME_SKIPPED
+
+    if scene.start_frame_gen_id.present?
+      CheckSceneStartFrameStatusJob.perform_later(scene)
+      return :pending
+    end
+
+    story = scene.story
+    end_card_id = story.story_type.brand_assets.to_h["end_card_id"].presence
+    if end_card_id && brand_end_card_scene?(scene)
+      scene.update!(start_frame_image_id: end_card_id, start_frame_image_type: "UPLOADED")
+      return :ready
+    end
+
+    references = start_frame_references(scene)
+    return :ready if references.blank?
+
+    payload  = start_frame_payload(scene, references)
+    response = generate_asset(payload, V2_GENERATION_ENDPOINT)
+
+    if rate_limited_response?(response)
+      Rails.logger.warn("Leonardo start frame scene=#{scene.id}: rate limited, retrying later")
+      LeonardoCreateSceneVideoJob.set(wait: (2 + rand()).round(2).minutes).perform_later(scene)
+      return :pending
+    end
+    if out_of_credits_response?(response)
+      log_out_of_credits(scene)
+      return :pending
+    end
+
+    generation_id = extract_generation_id(response)
+    if generation_id.blank?
+      Rails.logger.error("Leonardo start frame scene=#{scene.id}: missing generationId, using text-to-video #{response.inspect&.slice(0, 500)}")
+      scene.update!(start_frame_image_type: START_FRAME_SKIPPED)
+      return :ready
+    end
+
+    scene.update!(start_frame_gen_id: generation_id)
+    CheckSceneStartFrameStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+    :pending
+  end
+  private_class_method :prepare_scene_start_frame
+
+  def self.check_scene_start_frame_status(scene)
+    gen_id = scene.start_frame_gen_id
+    return if gen_id.blank? || scene.start_frame_image_id.present?
+
+    payload     = generation_status_payload(check_asset_generation_status(gen_id))
+    status      = generation_status_value(payload)
+    first_image = generation_first_image(payload)
+    Rails.logger.info("Leonardo start frame status scene=#{scene.id} gen_id=#{gen_id} status=#{status}")
+
+    if status == "COMPLETE" && first_image.is_a?(Hash) && first_image["id"].present?
+      scene.update!(start_frame_image_id: first_image["id"].to_s, start_frame_image_type: "GENERATED")
+      LeonardoCreateSceneVideoJob.perform_later(scene)
+    elsif status == "FAILED" || generation_blocked?(status, payload, first_image)
+      Rails.logger.error("Leonardo start frame failed scene=#{scene.id} gen_id=#{gen_id}, using text-to-video")
+      scene.update!(start_frame_gen_id: nil, start_frame_image_type: START_FRAME_SKIPPED)
+      LeonardoCreateSceneVideoJob.perform_later(scene)
+    else
+      CheckSceneStartFrameStatusJob.set(wait: (1 + rand()).round(2).minutes).perform_later(scene)
+    end
+  end
+
+  # The character seed always guides the frame; brand art joins when the
+  # narration names the brand (story type brand_assets keywords).
+  def self.start_frame_references(scene)
+    references = []
+    seed_id = scene.story.character_seed_image_id.presence
+    references << { "image" => { "id" => seed_id, "type" => "GENERATED" }, "strength" => "HIGH" } if seed_id
+
+    if brand_scene?(scene)
+      Array(scene.story.story_type.brand_assets.to_h["references"]).each do |asset|
+        id = asset.to_h["id"].presence
+        references << { "image" => { "id" => id, "type" => "UPLOADED" }, "strength" => "MID" } if id
+      end
+    end
+
+    references.first(MAX_NANO_BANANA_REFERENCES)
+  end
+  private_class_method :start_frame_references
+
+  def self.start_frame_payload(scene, references)
+    prompt = "First frame of a video scene. #{build_scene_video_prompt(scene)}"
+    if references.any? { |ref| ref.dig("image", "type") == "UPLOADED" }
+      prompt += "\n\nMatch the unicorn and the night-sky colors of the brand reference images."
+    end
+
+    parameters = {
+      "width"          => NANO_BANANA_2_FRAME_WIDTH,
+      "height"         => NANO_BANANA_2_FRAME_HEIGHT,
+      "prompt"         => finalize_image_prompt(prompt, MAX_NANO_BANANA_PROMPT_LENGTH),
+      "quantity"       => 1,
+      "prompt_enhance" => "OFF",
+      "guidances"      => { "image_reference" => references }
+    }
+    seed_value = integer_seed(scene.story.image_generation_seed)
+    parameters["seed"] = seed_value if seed_value
+
+    { "model" => NANO_BANANA_2_MODEL, "parameters" => parameters, "public" => false }
+  end
+  private_class_method :start_frame_payload
+
+  def self.brand_scene?(scene)
+    keywords = Array(scene.story.story_type.brand_assets.to_h["keywords"]).map(&:to_s).reject(&:blank?)
+    keywords.any? { |keyword| scene.text.to_s.downcase.include?(keyword.downcase) }
+  end
+  private_class_method :brand_scene?
+
+  # The end card is the story's last scene, and it must name the brand.
+  def self.brand_end_card_scene?(scene)
+    brand_scene?(scene) && scene.story.scenes.maximum(:id) == scene.id
+  end
+  private_class_method :brand_end_card_scene?
+
+  # Uploads a local image (POST /v1/init-image, then the presigned S3 form) and
+  # returns its Leonardo id, usable as an UPLOADED image reference or start frame.
+  def self.upload_init_image(path)
+    extension = File.extname(path).delete(".").downcase
+    extension = "jpg" if extension == "jpeg"
+    response = HTTParty.post(
+      INIT_IMAGE_ENDPOINT,
+      headers: {
+        "Accept" => "application/json",
+        "Content-Type" => "application/json",
+        "authorization" => "Bearer #{ENV['LEONARDO_KEY']}"
+      },
+      body: { "extension" => extension }.to_json
+    )
+    upload = leonardo_parsed(response).to_h["uploadInitImage"].to_h
+    raise "Leonardo init-image failed: #{response.body.to_s.slice(0, 300)}" if upload["url"].blank? || upload["id"].blank?
+
+    fields = upload["fields"].is_a?(String) ? JSON.parse(upload["fields"]) : upload["fields"].to_h
+    File.open(path, "rb") do |file|
+      # No Authorization header here: S3 rejects it.
+      s3 = HTTParty.post(upload["url"], body: fields.merge("file" => file), multipart: true)
+      raise "Leonardo image upload failed (#{s3.code}): #{s3.body.to_s.slice(0, 300)}" unless s3.success?
+    end
+
+    upload["id"]
+  end
+
   def self.build_scene_video_prompt(scene)
     base_prompt = StoryJsonNormalizer.normalize_ai_image_prompts(scene.ai_image_prompt).first.to_s
-    return truncate_hailuo_prompt(base_prompt) if scene.story.leonardo_direct_video?
 
     characters  = StoryJsonNormalizer.filter_characters_in_text(
       scene.story.characters,
@@ -373,27 +549,34 @@ class LeonardoClient
       scene.text
     )
     characters = characters.reject { |character| description_embedded_in_prompt?(base_prompt, character["physical_description"]) }
+    return truncate_hailuo_prompt(base_prompt) if characters.blank?
 
-    prompt = if characters.blank?
-      base_prompt
-    else
-      character_lines = characters.map do |character|
-        "- #{character['name']}: #{character['physical_description']}"
-      end
-
-      <<~PROMPT.strip
-        #{base_prompt}
-
-        Character reference — use these exact physical descriptions for any character visible in this scene:
-        #{character_lines.join("\n")}
-
-        Ensure each character in the video matches their physical description above.
-      PROMPT
+    character_block = scene_character_block(characters)
+    # Text-to-video has no seed image to lean on, so the cast must survive the length
+    # limit: trim the scene description instead of the character reference.
+    room = MAX_HAILUO_PROMPT_LENGTH - character_block.length - 2
+    if room < 200
+      character_block = truncate_prompt(character_block, MAX_HAILUO_PROMPT_LENGTH - 202)
+      room = 200
     end
 
-    truncate_hailuo_prompt(prompt)
+    "#{truncate_prompt(base_prompt, room)}\n\n#{character_block}"
   end
   private_class_method :build_scene_video_prompt
+
+  def self.scene_character_block(characters)
+    character_lines = characters.map do |character|
+      "- #{character['name']}: #{character['physical_description']}"
+    end
+
+    <<~PROMPT.strip
+      Character reference — use these exact physical descriptions for any character visible in this scene:
+      #{character_lines.join("\n")}
+
+      Ensure each character in the video matches their physical description above.
+    PROMPT
+  end
+  private_class_method :scene_character_block
 
   def self.scene_generation_prompt(scene)
     if scene.story.leonardo_direct_video?
@@ -417,7 +600,7 @@ class LeonardoClient
   private_class_method :truncate_hailuo_prompt
 
   def self.log_http_call(method, endpoint, body: nil, response: nil)
-    parts = ["Leonardo #{method} #{endpoint}"]
+    parts = [ "Leonardo #{method} #{endpoint}" ]
     parts << "body=#{body.to_json}" if body
     if response
       status = response.respond_to?(:code) ? response.code : nil
@@ -457,16 +640,33 @@ class LeonardoClient
   end
   private_class_method :finalize_image_prompt
 
+  # Picks the Nano Banana 2 size matching the story type's image orientation
+  # (portrait when the story type has no usable size).
+  def self.nano_banana_2_size(story_type)
+    width  = story_type&.image_width.to_i
+    height = story_type&.image_height.to_i
+    orientation = if width.positive? && height.positive? && width > height
+      :landscape
+    elsif width.positive? && width == height
+      :square
+    else
+      :portrait
+    end
+    NANO_BANANA_2_SIZES.fetch(orientation)
+  end
+  private_class_method :nano_banana_2_size
+
   def self.image_generation_payload(model, prompt, story_type, seed: nil)
     model = normalize_image_model(model)
     seed_value = integer_seed(seed)
     if model == NANO_BANANA_2_MODEL
+      width, height = nano_banana_2_size(story_type)
       parameters = {
-        "width"          => NANO_BANANA_2_WIDTH,
-        "height"         => NANO_BANANA_2_HEIGHT,
+        "width"          => width,
+        "height"         => height,
         "prompt"         => finalize_image_prompt(prompt, MAX_NANO_BANANA_PROMPT_LENGTH),
         "quantity"       => 1,
-        "style_ids"      => [DYNAMIC_STYLE_UUID],
+        "style_ids"      => [ DYNAMIC_STYLE_UUID ],
         "prompt_enhance" => "OFF"
       }
       parameters["seed"] = seed_value if seed_value
@@ -496,12 +696,17 @@ class LeonardoClient
   def self.wan_video_payload(scene)
     parameters = {
       "prompt"   => build_scene_video_prompt(scene),
-      "duration" => DEFAULT_WAN_DURATION,
+      "duration" => scene.text.to_s.strip.length > WAN_LONG_SCENE_CHARS ? LONG_WAN_DURATION : DEFAULT_WAN_DURATION,
       "width"    => WAN_WIDTH,
       "height"   => WAN_HEIGHT
     }
     seed_value = integer_seed(scene.story.image_generation_seed)
     parameters["seed"] = seed_value if seed_value
+    if scene.start_frame_image_id.present?
+      parameters["guidances"] = {
+        "start_frame" => [ { "image" => { "id" => scene.start_frame_image_id, "type" => scene.start_frame_image_type.presence || "GENERATED" } } ]
+      }
+    end
 
     {
       "model"      => WAN_VIDEO_MODEL,
@@ -570,6 +775,23 @@ class LeonardoClient
   end
   private_class_method :rate_limited_response?
 
+  # "Insufficient tokens" (HTTP 402 in the body) is a billing problem, not a content one:
+  # never soften prompts for it. The scene is left as it was so it can be retried once
+  # credits are added (Story#enqueue_scene_generations! or the scene's generate button).
+  def self.out_of_credits_response?(response)
+    parsed = leonardo_parsed(response)
+    status = parsed.dig("extensions", "statusCode").to_i
+    message = [ parsed["error"], parsed["message"] ].compact.join(" ")
+    status == 402 || message.match?(/insufficient (tokens|credits)|not enough (tokens|credits)/i)
+  end
+  private_class_method :out_of_credits_response?
+
+  def self.log_out_of_credits(scene)
+    Rails.logger.error("Leonardo is out of API credits: scene=#{scene.id} story=#{scene.story_id} was not generated. Add credits, then retry.")
+    nil
+  end
+  private_class_method :log_out_of_credits
+
   def self.generation_status_payload(data)
     return {} if data.blank?
 
@@ -620,7 +842,7 @@ class LeonardoClient
       video = video.respond_to?(:stringify_keys) ? video.stringify_keys : video
       next unless video.is_a?(Hash)
 
-      candidates.concat([video["url"], video["src"], video["motionMP4URL"], video["motion_mp4_url"]])
+      candidates.concat([ video["url"], video["src"], video["motionMP4URL"], video["motion_mp4_url"] ])
     end
 
     urls = candidates.map(&:presence).compact
@@ -628,8 +850,16 @@ class LeonardoClient
   end
   private_class_method :generation_video_url
 
+  # Leonardo tags prompts (CHILD, NSFW, TRADEMARK...) and flags images nsfw while still
+  # returning them; baby scenes are flagged all the time. A flag only counts when the
+  # generation ended with nothing usable, otherwise we would pay to soften and redo a
+  # perfectly good image (and keep the flagged one anyway once the rewrites run out).
   def self.generation_blocked?(status, payload, first_image)
-    status == "FAILED" || image_nsfw?(first_image) || prompt_moderated?(payload)
+    return true if status == "FAILED"
+    return false unless status == "COMPLETE"
+    return false if generation_image_url(first_image).present?
+
+    first_image.blank? || image_nsfw?(first_image) || prompt_moderated?(payload)
   end
   private_class_method :generation_blocked?
 
@@ -688,15 +918,15 @@ class LeonardoClient
   def self.hailuo_video_dimensions(image_width, image_height)
     w = image_width.to_i
     h = image_height.to_i
-    return [1920, 1080, "RESOLUTION_1080"] if w <= 0 || h <= 0
+    return [ 1920, 1080, "RESOLUTION_1080" ] if w <= 0 || h <= 0
 
     ratio = w.to_f / h
     if ratio >= 1.34
-      [1920, 1080, "RESOLUTION_1080"]      # 16:9
+      [ 1920, 1080, "RESOLUTION_1080" ]      # 16:9
     elsif ratio <= 0.75
-      [1080, 1920, "RESOLUTION_1080"]      # 9:16
+      [ 1080, 1920, "RESOLUTION_1080" ]      # 9:16
     else
-      [1080, 1080, "RESOLUTION_1080"]      # 1:1
+      [ 1080, 1080, "RESOLUTION_1080" ]      # 1:1
     end
   end
 
@@ -710,7 +940,7 @@ class LeonardoClient
         payload["motionStrength"] = 4
         response                  = generate_asset(payload, MOTION_ENDPOINT)
         Rails.logger.info("Leonardo create_scene_motion_images scene=#{scene.id} response=#{response.inspect&.slice(0, 500)}")
-        image_data.merge!({ "leonardo_motion_image_gen_id": response["motionSvdGenerationJob"]["generationId"]})
+        image_data.merge!({ "leonardo_motion_image_gen_id": response["motionSvdGenerationJob"]["generationId"] })
       rescue => e
         Rails.logger.error("Leonardo create_scene_motion_images scene=#{scene.id}: #{e.message}")
         scene.save
@@ -725,7 +955,5 @@ class LeonardoClient
     else
       Rails.logger.error("Error: scene.leonardo_gen_ids != scene.ai_image_prompt.count scene=#{scene.id}")
     end
-
   end
-
 end

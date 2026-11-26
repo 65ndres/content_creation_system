@@ -13,7 +13,7 @@ class CheckLeonardoSceneVideoGenerationStatusJob < ApplicationJob
 
     local_video = scene.video_url.present? && !scene.video_url.to_s.match?(/\Ahttps?:\/\//i)
     if local_video && scene.audio.attached?
-      MergeAudioVideoJob.set(wait: ([1,2,3].sample + rand()).round(2).minutes + rand(1...10.seconds)).perform_later(scene)
+      MergeAudioVideoJob.set(wait: ([ 1, 2, 3 ].sample + rand()).round(2).minutes + rand(1...10.seconds)).perform_later(scene)
     elsif scene.leonardo_video_url.present? && !local_video
       Rails.logger.warn("CheckLeonardoSceneVideoGenerationStatusJob scene=#{scene.id}: persist video failed, retrying")
       self.class.set(wait: 1.minute).perform_later(scene)

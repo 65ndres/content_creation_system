@@ -1,0 +1,34 @@
+<% content_for :title, "Story types" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Library</p>
+    <h1>Story types</h1>
+  </div>
+  <%= link_to "New story type", new_story_type_path, class: "btn btn-primary" %>
+</header>
+
+<% if @story_types.empty? %>
+  <section class="empty">
+    <p>No story types yet.</p>
+    <p class="muted"><%= link_to "Create a story type", new_story_type_path %> to get started.</p>
+  </section>
+<% else %>
+  <ul class="story-list">
+    <% @story_types.each do |story_type| %>
+      <li>
+        <%= link_to story_type_path(story_type), class: "story-row" do %>
+          <span class="story-id">#<%= story_type.id %></span>
+          <span class="story-body">
+            <strong><%= story_type.name %></strong>
+            <span class="muted"><%= story_type.output_width %>×<%= story_type.output_height %> · <%= pluralize(@story_counts[story_type.id].to_i, "story") %></span>
+          </span>
+          <span class="meta">
+            <span class="pill"><%= story_type.outro_video ? "Outro: #{story_type.outro_video.name}" : "No outro" %></span>
+            <time datetime="<%= story_type.created_at.iso8601 %>"><%= story_type.created_at.strftime("%b %-d, %Y") %></time>
+          </span>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

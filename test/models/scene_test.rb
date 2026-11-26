@@ -74,12 +74,14 @@ class SceneTest < ActiveSupport::TestCase
     assert_nil scene.story.reload.video_url
   end
 
-  test "creating a scene enqueues audio instead of generating it inline" do
-    story = stories(:one)
-
-    assert_enqueued_with(job: CreateSceneAudioJob) do
-      story.scenes.create!(text: "A new scene for audio enqueue.", ai_image_prompt: [ "p" ], images_total: 1)
+  test "creating a scene leaves audio to Story#create_scenes" do
+    assert_no_enqueued_jobs(only: CreateSceneAudioJob) do
+      stories(:one).scenes.create!(text: "A new scene for audio enqueue.", ai_image_prompt: [ "p" ], images_total: 1)
     end
+  end
+
+  test "create audio enqueues the audio job instead of generating it inline" do
+    assert_enqueued_with(job: CreateSceneAudioJob) { scenes(:one).create_audio }
   end
 
   test "regenerate audio skips blank text" do

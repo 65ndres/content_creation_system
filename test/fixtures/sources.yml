@@ -2,8 +2,6 @@
 
 one:
   text: MyText
-  user: one
 
 two:
   text: MyText
-  user: two

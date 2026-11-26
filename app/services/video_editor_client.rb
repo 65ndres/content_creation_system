@@ -2,8 +2,8 @@ require "base64"
 require "httparty"
 
 class VideoEditorClient
-
   VIDEO_ENDPOINT = "http://localhost:3003/reel_generator/videos"
+  RENDER_SETTING_KEYS = %w[fill_output caption_center_y caption_margin_right].freeze
 
   def self.generate_scene_video(scene)
     if scene.video_url.present?
@@ -127,8 +127,20 @@ class VideoEditorClient
   def self.create_story_video_payload(story)
     payload                = {}
     payload["story_id"]    = story.id
-    payload
+    outro_url = attached_download_url(story.story_type&.outro_video&.video)
+    payload["outro_video_url"] = outro_url if outro_url.present?
+    payload.merge(render_settings_payload(story.story_type))
   end
+
+  # A story type's opt-in render rules (exact output size, caption position).
+  # Story types without them send nothing, so their videos render as before.
+  def self.render_settings_payload(story_type)
+    settings = story_type&.render_settings.to_h.stringify_keys.slice(*RENDER_SETTING_KEYS)
+    return {} if settings.blank?
+
+    settings.merge("output_width" => story_type.output_width, "output_height" => story_type.output_height)
+  end
+  private_class_method :render_settings_payload
 
   def self.persist_scene_media(scene, persist_audio: false, persist_video: false, audio_bytes: nil)
     payload = {
@@ -192,7 +204,7 @@ class VideoEditorClient
     payload["scene_id"]   = scene.id
     payload["story_id"]   = scene.story_id
     payload["scene_text"] = scene.text
-    payload
+    payload.merge(render_settings_payload(scene.story.story_type))
   end
 
   def self.attached_audio_bytes(scene)
@@ -265,6 +277,7 @@ class VideoEditorClient
     elsif generation_failed?(data)
       Rails.logger.error("is_scene_video_ready scene=#{scene.id}: video editor job #{gen_id} failed, stopped polling")
       scene.update(video_gen_id: nil)
+      scene.story.fail_in_queue!("Scene ##{scene.id}: video render failed")
     else
       CheckSceneVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
@@ -282,10 +295,11 @@ class VideoEditorClient
 
     if data["completed"] == true
       scene.merged_audio_video_url = data["file_path"]
-      scene.save
+      scene.story.create_final_video_if_ready! if scene.save
     elsif generation_failed?(data)
       Rails.logger.error("is_merged_audio_video_ready scene=#{scene.id}: video editor job #{gen_id} failed, stopped polling")
       scene.update(merged_audio_video_gen_id: nil)
+      scene.story.fail_in_queue!("Scene ##{scene.id}: audio and video merge failed")
     else
       CheckMergedAudioVideoGenerationStatusJob.set(wait: 20.seconds).perform_later(scene)
     end
@@ -297,10 +311,11 @@ class VideoEditorClient
 
     if data["completed"] == true
       story.video_url = data["file_path"]
-      story.save
+      story.finish_in_queue! if story.save
     elsif generation_failed?(data)
       Rails.logger.error("is_story_video_ready story=#{story.id}: video editor job #{gen_id} failed, stopped polling")
       story.update(video_gen_id: nil)
+      story.fail_in_queue!("Final video render failed")
     else
       CheckStoryVideoGenerationStatusJob.set(wait: 3.minutes).perform_later(story)
     end
@@ -326,5 +341,4 @@ class VideoEditorClient
     response["body"]
   end
   private_class_method :response_body
-
 end

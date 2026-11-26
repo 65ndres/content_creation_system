@@ -15,6 +15,14 @@
 <section class="summary">
   <div class="summary-row">
     <p class="pill"><%= story_status(@story) %></p>
+    <% if @story.auto_produce? %>
+      <p class="pill">Auto</p>
+    <% end %>
+    <% if @story.queue_queued? || @story.queue_running? %>
+      <%= button_to "Cancel", cancel_story_path(@story), method: :post, class: "btn" %>
+    <% elsif @story.queue_failed? || (@story.queue_cancelled? && @story.video_url.blank?) %>
+      <%= button_to "Retry", retry_story_path(@story), method: :post, class: "btn" %>
+    <% end %>
     <% unless @scenes.empty? %>
       <p class="pill"><%= completed %> / <%= total %> scenes complete</p>
     <% end %>
@@ -37,6 +45,9 @@
       <button type="button" class="btn" data-scenes-toggle>Show all scenes</button>
     <% end %>
   </div>
+  <% if @story.queue_failed? && @story.last_error.present? %>
+    <p class="is-error">Stopped: <%= @story.last_error %></p>
+  <% end %>
   <% if @story.character_seed_image_url.present? || @story.video_url.present? %>
     <div class="story-media">
       <% if @story.character_seed_image_url.present? %>

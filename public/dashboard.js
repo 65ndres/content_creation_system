@@ -104,6 +104,8 @@
         if (voiceId) body.voice_id = voiceId;
         const visualStyle = root.querySelector("[data-visual-style]")?.value.trim();
         if (visualStyle) body.visual_style = visualStyle;
+        const outroVideoId = root.querySelector("[data-outro-video]")?.value;
+        if (outroVideoId) body.outro_video_id = outroVideoId;
       }
 
       saveBtn.disabled = true;

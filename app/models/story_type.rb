@@ -1,6 +1,9 @@
 class StoryType < ApplicationRecord
   DEFAULT_VOICE_ID = "HIGUfNOdjuWQwwapnTRW"
 
+  belongs_to :outro_video, optional: true
+  has_many :stories
+
   before_validation :assign_default_voice_id
   before_save :reset_visual_style, if: :reset_visual_style?
 

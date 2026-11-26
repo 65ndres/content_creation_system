@@ -4,6 +4,9 @@ class DashboardController < ActionController::Base
 
   def index
     @stories = Story.includes(:story_type, :source, :scenes).order(created_at: :desc)
+    @running = Story.queue_running.includes(:story_type).order(:started_at).to_a
+    @waiting = Story.queue_waiting.includes(:story_type).to_a
+    @failed  = Story.queue_failed.includes(:story_type).order(finished_at: :desc).limit(5).to_a
   end
 
   def new
@@ -13,22 +16,47 @@ class DashboardController < ActionController::Base
     )
   end
 
+  # One story per picked source, all with the same settings. Each joins the story queue,
+  # which starts them one at a time.
   def create
-    @story = Story.new(story_params)
-    @story.defer_pipeline = true
+    source_ids = Array(params.dig(:story, :source_ids)).reject(&:blank?).uniq
+    source_ids = [ story_params[:source_id] ].compact_blank if source_ids.empty?
+    @story = Story.new(story_params.merge(source_id: source_ids.first))
 
-    if @story.save
-      CreateStoryTextJob.perform_later(@story)
-      redirect_to story_path(@story)
-    else
-      load_story_form
-      render :new, status: :unprocessable_entity
+    if source_ids.empty?
+      @story.errors.add(:base, "Pick at least one source.")
+      return render_new_story
     end
+
+    stories = []
+    Story.transaction do
+      source_ids.each { |id| stories << Story.create!(story_params.merge(source_id: id)) }
+    end
+
+    if stories.one?
+      redirect_to story_path(stories.first)
+    else
+      redirect_to stories_path, notice: "#{stories.size} stories queued. They run one at a time."
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    @story.errors.add(:base, e.record.errors.full_messages.to_sentence)
+    render_new_story
   rescue ArgumentError => e
-    load_story_form
-    @story ||= Story.new(story_params)
+    @story ||= Story.new
     @story.errors.add(:base, e.message)
-    render :new, status: :unprocessable_entity
+    render_new_story
+  end
+
+  def cancel_in_queue
+    story = Story.find(params[:id])
+    story.cancel_in_queue!
+    redirect_back fallback_location: story_path(story)
+  end
+
+  def retry_in_queue
+    story = Story.find(params[:id])
+    story.retry_in_queue!
+    redirect_back fallback_location: story_path(story)
   end
 
   def show
@@ -38,13 +66,7 @@ class DashboardController < ActionController::Base
 
   def generate_videos
     story = Story.find(params[:id])
-    queued = 0
-    story.scenes.order(:id).each do |scene|
-      # Leonardo's plan allows one pending generation at a time, so space out
-      # every scene (images and direct video alike).
-      wait = queued * 30.seconds
-      queued += 1 if scene.enqueue_leonardo_generation!(wait: wait)
-    end
+    story.enqueue_scene_generations!
     redirect_to story_path(story)
   end
 
@@ -67,9 +89,15 @@ class DashboardController < ActionController::Base
   end
 
   def new_story_type
+    @outro_videos = OutroVideo.order(:name)
   end
 
   private
+
+  def render_new_story
+    load_story_form
+    render :new, status: :unprocessable_entity
+  end
 
   def load_story_form
     @story_types = StoryType.order(:name)
@@ -83,7 +111,8 @@ class DashboardController < ActionController::Base
       :story_type_id,
       :source_id,
       :image_generation_model,
-      :video_generation_model
+      :video_generation_model,
+      :auto_produce
     )
     permitted[:video_generation_model] = permitted[:video_generation_model].presence
     permitted
@@ -115,7 +144,10 @@ class DashboardController < ActionController::Base
   end
 
   def story_status(story)
-    return "Queued" if story.scenes.empty? && story.text.blank?
+    return "Queued · ##{StoryQueue.position(story)} in line" if story.queue_queued?
+    return "Cancelled" if story.queue_cancelled? && story.video_url.blank?
+    return "Failed" if story.queue_failed?
+    return "Starting" if story.scenes.empty? && story.text.blank?
     return "Draft" if story.scenes.empty?
     return "Final video" if story.video_completed?
     return "Merged" if story.scenes_audio_video_merge_completed?

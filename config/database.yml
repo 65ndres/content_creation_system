@@ -6,6 +6,8 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   host: <%= ENV['POSTGRES_HOST'] %>
   port: 5432
+  # libpq's GSSAPI encryption segfaults in forked processes on macOS (parallel test workers).
+  gssencmode: disable
 
 
 development:

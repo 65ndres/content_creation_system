@@ -1,0 +1,62 @@
+<% content_for :title, "Outro videos" %>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">Library</p>
+    <h1>Outro videos</h1>
+  </div>
+</header>
+
+<%= form_with model: @outro_video, url: outro_videos_path, method: :post, local: true, multipart: true, class: "composer" do |form| %>
+  <% if notice.present? %>
+    <p class="is-success"><%= notice %></p>
+  <% end %>
+  <% if @outro_video.errors.any? %>
+    <p class="is-error"><%= @outro_video.errors.full_messages.to_sentence %></p>
+  <% end %>
+
+  <div class="form-grid">
+    <label>
+      <span class="field-label">Name</span>
+      <%= form.text_field :name, class: "select", required: true, placeholder: "Gospel closing + Promesas (EN)" %>
+    </label>
+
+    <label>
+      <span class="field-label">Video file</span>
+      <%= form.file_field :video, class: "select", accept: "video/*", required: true %>
+    </label>
+  </div>
+
+  <div class="composer-bar">
+    <p class="muted">Pick one when you create a story type. It plays at the end of that type's videos.</p>
+    <%= form.submit "Upload outro", class: "btn btn-primary", data: { disable_with: "Uploading…" } %>
+  </div>
+<% end %>
+
+<% if @outro_videos.empty? %>
+  <section class="empty">
+    <p>No outro videos yet.</p>
+    <p class="muted">Upload one above, then choose it on New story type.</p>
+  </section>
+<% else %>
+  <ul class="outro-list">
+    <% @outro_videos.each do |outro| %>
+      <li class="outro-card">
+        <% if outro.video.attached? %>
+          <video src="<%= rails_blob_path(outro.video) %>" controls preload="metadata" playsinline></video>
+        <% end %>
+        <div class="outro-body">
+          <strong><%= outro.name %></strong>
+          <span class="muted">
+            <% if outro.story_types.any? %>
+              Used by <%= outro.story_types.map(&:name).to_sentence %>
+            <% else %>
+              Not used by any story type
+            <% end %>
+          </span>
+          <time class="muted" datetime="<%= outro.created_at.iso8601 %>"><%= outro.created_at.strftime("%b %-d, %Y") %></time>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

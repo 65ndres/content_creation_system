@@ -33,5 +33,7 @@ module ReelGenerator
     config.session_store :cookie_store, key: "_session_reel_generator"
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use config.session_store, config.session_options
+    # Flash messages (notice/alert) for the HTML dashboard pages.
+    config.middleware.use ActionDispatch::Flash
   end
 end

@@ -28,6 +28,8 @@ Rails.application.routes.draw do
   get "stories/:id", to: "dashboard#show", as: :story
   post "stories/:id/generate_videos", to: "dashboard#generate_videos", as: :generate_story_videos
   post "stories/:id/create_video", to: "dashboard#create_video", as: :create_story_video
+  post "stories/:id/cancel", to: "dashboard#cancel_in_queue", as: :cancel_story
+  post "stories/:id/retry", to: "dashboard#retry_in_queue", as: :retry_story
   post "stories/:id/rebuild_scene_videos", to: "dashboard#rebuild_scene_videos", as: :rebuild_story_scene_videos
   post "stories/:story_id/scenes/:id/rewrite_prompt", to: "scenes#rewrite_prompt", as: :rewrite_story_scene
   post "stories/:story_id/scenes/:id/generate_video", to: "scenes#generate_video", as: :generate_story_scene_video
@@ -43,5 +45,9 @@ Rails.application.routes.draw do
 
   get "story_types/new", to: "dashboard#new_story_type", as: :new_story_type
   post "story_types/generate", to: "story_types#generate", as: :generate_story_type
-  resources :story_types, only: [ :create ]
+  resources :story_types, only: [ :index, :show, :create ]
+  # POST, like the other dashboard actions: api_only mode has no _method override.
+  post "story_types/:id/outro", to: "story_types#update_outro", as: :story_type_outro
+
+  resources :outro_videos, only: [ :index, :create ]
 end

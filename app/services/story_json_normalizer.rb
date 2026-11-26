@@ -1,10 +1,14 @@
 class StoryJsonNormalizer
+  # Role words shared by many characters ("Dragon Baby" / "Unicorn Baby") must not
+  # match on their own, or one baby would pick up the other's description.
+  GENERIC_NAME_TOKENS = %w[baby babies mother father child kids girl woman lady].freeze
+
   def self.normalize_pairs(data)
     pairs = case data
-            when Hash then data["pairs"] || data[:pairs]
-            when Array then data
-            else []
-            end
+    when Hash then data["pairs"] || data[:pairs]
+    when Array then data
+    else []
+    end
 
     pairs = pairs.values if pairs.is_a?(Hash)
     return [] unless pairs.is_a?(Array)
@@ -12,9 +16,26 @@ class StoryJsonNormalizer
     pairs.select { |obj| obj.is_a?(Hash) }
   end
 
+  # A scene's narration may end at . ? ! … ; : or , (optionally followed by a closing quote).
+  PHRASE_BREAK = /[.?!…;:,]["'”’)\]]*\z/
+
+  # Joins any pair whose narration stops mid-phrase ("You tiptoe out") with the
+  # pairs after it, so a scene never cuts a sentence in an odd place. The joined
+  # pair keeps the first pair's image prompts.
+  def self.merge_mid_phrase_pairs(pairs)
+    pairs.each_with_object([]) do |pair, merged|
+      previous = merged.last
+      if previous && !previous["original"].to_s.strip.match?(PHRASE_BREAK)
+        previous["original"] = "#{previous['original'].to_s.strip} #{pair['original'].to_s.strip}".strip
+      else
+        merged << pair.dup
+      end
+    end
+  end
+
   def self.normalize_ai_image_prompts(value)
     case value
-    when String then [value]
+    when String then [ value ]
     when Array then value.map(&:to_s).reject(&:blank?)
     else []
     end
@@ -25,7 +46,7 @@ class StoryJsonNormalizer
     when Array
       value.each_with_index.filter_map { |item, i| normalize_character_entry(item, i) }
     when Hash
-      value.map { |name, desc| normalize_character_entry([name, desc], nil) }.compact
+      value.map { |name, desc| normalize_character_entry([ name, desc ], nil) }.compact
     else
       []
     end
@@ -47,10 +68,10 @@ class StoryJsonNormalizer
 
     main = normalized.first
     others = normalized.drop(1).sort_by.with_index do |character, index|
-      [-character_mention_count(character["name"], text.to_s), index]
+      [ -character_mention_count(character["name"], text.to_s), index ]
     end
 
-    [main, *others.first(limit - 1)]
+    [ main, *others.first(limit - 1) ]
   end
 
   def self.character_name_mentioned?(name, haystack)
@@ -76,7 +97,10 @@ class StoryJsonNormalizer
   def self.primary_match_token(name)
     stripped = name.to_s.sub(/\A(?:unnamed|unknown)\s+/i, "")
     tokens = stripped.split(/\s+/).reject { |token| token.match?(/\A(?:the|a|an|at)\z/i) }
-    significant = tokens.select { |token| token.gsub(/[^a-z0-9]/i, "").length >= 4 }
+    significant = tokens.select do |token|
+      word = token.gsub(/[^a-z0-9]/i, "")
+      word.length >= 4 && !GENERIC_NAME_TOKENS.include?(word.downcase)
+    end
     return nil if significant.empty?
 
     return significant.first if name.match?(/\A(?:unnamed|unknown)\s+/i)

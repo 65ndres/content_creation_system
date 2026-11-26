@@ -30,11 +30,6 @@
       </label>
 
       <label>
-        <span class="field-label">Source</span>
-        <%= form.select :source_id, options_from_collection_for_select(@sources, :id, :dashboard_label, @story.source_id), { prompt: "Choose one" }, class: "select", required: true %>
-      </label>
-
-      <label>
         <span class="field-label">Image model</span>
         <%= form.select :image_generation_model, @image_models.map { |value, label| [ label, value ] }, {}, class: "select" %>
       </label>
@@ -45,9 +40,30 @@
       </label>
     </div>
 
+    <fieldset class="source-field">
+      <legend class="field-label">Sources <span class="muted">· pick one or more, each becomes its own story</span></legend>
+      <% picked = Array(params.dig(:story, :source_ids)).map(&:to_s).presence || [ @story.source_id.to_s ] %>
+      <div class="source-picker">
+        <% @sources.each do |source| %>
+          <label class="source-option">
+            <%= check_box_tag "story[source_ids][]", source.id, picked.include?(source.id.to_s), id: "story_source_ids_#{source.id}" %>
+            <span><%= source.dashboard_label %></span>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+
+    <label class="checkbox-field">
+      <%= form.check_box :auto_produce %>
+      <span>
+        <strong>Produce the full video automatically</strong>
+        <span class="muted">Generates every scene, then the final video. No clicks needed.</span>
+      </span>
+    </label>
+
     <div class="composer-bar">
-      <p class="muted">Generation starts in the background after you create the story.</p>
-      <%= form.submit "Create story", class: "btn btn-primary" %>
+      <p class="muted">Stories run one at a time. Extra ones wait in the queue.</p>
+      <%= form.submit "Create stories", class: "btn btn-primary" %>
     </div>
   <% end %>
 <% end %>

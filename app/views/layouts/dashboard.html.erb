@@ -12,14 +12,19 @@
       <aside class="rail">
         <p class="mark">Studio</p>
         <nav class="tabs">
-          <%= link_to "Stories", stories_path, class: "tab #{'is-active' if action_name.in?(%w[index show])}" %>
-          <%= link_to "New story", new_story_path, class: "tab #{'is-active' if action_name.in?(%w[new create])}" %>
+          <%= link_to "Stories", stories_path, class: "tab #{'is-active' if controller_name == 'dashboard' && action_name.in?(%w[index show])}" %>
+          <%= link_to "New story", new_story_path, class: "tab #{'is-active' if controller_name == 'dashboard' && action_name.in?(%w[new create])}" %>
           <%= link_to "New source", new_source_path, class: "tab #{'is-active' if action_name == 'new_source'}" %>
+          <%= link_to "Story types", story_types_path, class: "tab #{'is-active' if controller_name == 'story_types'}" %>
           <%= link_to "New story type", new_story_type_path, class: "tab #{'is-active' if action_name == 'new_story_type'}" %>
+          <%= link_to "Outro videos", outro_videos_path, class: "tab #{'is-active' if controller_name == 'outro_videos'}" %>
         </nav>
       </aside>
 
       <main class="stage">
+        <% if notice.present? %>
+          <p class="is-success flash"><%= notice %></p>
+        <% end %>
         <%= yield %>
       </main>
     </div>

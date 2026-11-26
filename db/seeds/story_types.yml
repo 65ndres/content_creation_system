@@ -1,0 +1,429 @@
+# Snapshot of story types from the local development database (2026-11-26).
+# Loaded by db/seeds.rb, which creates or updates each one by name.
+# outro_video is matched by OutroVideo name; brand_assets ids are Leonardo uploads.
+---
+- name: Christian gospel (paper relief)
+  story_prompt_text: |
+    Read the story above.
+    You're a christian story teller. Do not change any word of the story.
+    Begin with one sentence of no more than 25 words that shares the teaching of the story. Open that sentence naturally, the way a narrator would say it out loud, with a phrase such as 'Today's teaching is that', 'The teaching from today's reading is that', or 'Today's verse teaches us that'. Never use a label such as 'Teaching:'.
+    Then leave a blank line and write the story exactly as given, starting with its reference.
+
+    Split the teaching and the story into short beats, in order. Break only after a period or existing strong punctuation such as !, ?, ; or :, never at a comma. Keep every word, spelling, capitalization, punctuation mark and word order of each beat exactly as written; never paraphrase, summarize, add or remove words.
+    After each beat, on its own line, write a scene direction in square brackets that starts with "[SCENE:" and says who is on screen, what each of them is doing (pose, gesture, where they look), where they are, and how the camera moves. Leave one blank line between beats.
+
+    Rules for scene directions:
+    - The teaching's direction establishes the world of the cited book (first-century Galilee or Jerusalem for the Gospels, and so on); it is never a title card.
+    - Call Jesus "Jesus" every time. In parables, the master, lord, king, bridegroom, landowner, shepherd or father figure is written as "the master (shown as Jesus)" or the matching role with "(shown as Jesus)".
+    - Give every other person or group one short name the first time they appear (for example "John", "the first servant", "the disciples") and use exactly that name in every later direction.
+    - Never show God as a person. Show divine presence through light, fire, cloud, wind, the temple or creation.
+    - Show only people and events the beat mentions or clearly implies; do not invent subplots, events or characters.
+    - Describe only actions, places and moods, not faces, ages, bodies or clothing; looks are added later.
+    - Describe hard moments symbolically and calmly, without words such as blood, wound, injury, violence, trampling, crushing or fallen.
+    - Never ask for text, letters or readable writing.
+
+    Return only the teaching beat and the story beats, each followed by its scene direction, with nothing after the last direction.
+  scenes_json_prompts: |-
+    I have a Bible passage that may begin with a one-sentence teaching before the Scripture. Create image prompts for every scene without inventing events, characters, or plot.
+
+    The text is split into beats. Each beat is followed by a scene direction in square brackets that starts with [SCENE:. The directions are not narration: never put them, or any part of them, in an 'original'. Leave them out when checking that the 'original' values reproduce the teaching and Scripture exactly. Build each image prompt from the direction that follows its beat, keeping who is on screen, what each person is doing, the place and the camera; when you combine beats into one 'original', merge their directions into one moment. Use the same character names as the directions.
+
+    Return ONLY valid JSON. The root object must contain one key named 'pairs'. Each pair must contain 'original' and 'aiImagePrompts'. Each 'aiImagePrompts' value must be an array containing exactly one string.
+
+    Important: valid JSON requires double quotes in the generated JSON, even though this instruction uses single quotes when referring to keys and phrases.
+
+    If the text begins with a teaching, the first 'original' is that teaching and the second 'original' must be the spoken reference. Otherwise the first 'original' must be the spoken reference.
+
+    For a range: '[Book] chapter [number], from verse [start] to [end]'
+
+    For one verse: '[Book] chapter [number], verse [number]'
+
+    Do not repeat the citation later.
+
+    Every Scripture 'original' must match the source 100% exactly. Preserve every word, spelling, capitalization, punctuation mark, and word order. Never paraphrase, summarize, explain, add, remove, improve, or replace Scripture.
+
+    Split scenes only after periods or existing strong punctuation such as !, ?, ;, or :. Never split scenes at commas.
+
+    Do not add verse numbers, headings, labels, or citations. Combining all Scripture 'original' values in order must reproduce the supplied Scripture exactly, without the bracketed scene directions.
+
+    Do not add any transition, introduction, or bridging pair of your own. The teaching already introduces itself.
+
+    Copy the teaching exactly, before the reference. Preserve every word and punctuation mark. Give every teaching sentence at least one scene.
+
+    PALETTE (the only colors allowed, use these exact names): Cerulean Blue, Lavender, Dusty Pink, Coral, Marigold Orange, Vermilion, Soft White, Deep Navy, Mustard Yellow. Cerulean Blue is #278dab, a medium cerulean teal blue. Marigold Orange is #ff941f, a bright warm marigold orange. Mustard Yellow is #d4a72c, a muted golden mustard. Never write hex codes in image prompts; write only the color names, and describe Cerulean Blue as 'Cerulean Blue (medium teal blue)', Marigold Orange as 'Marigold Orange (bright warm orange)', and Mustard Yellow as 'Mustard Yellow (muted golden mustard)' the first time each appears in a prompt. Roles: Cerulean Blue for daytime sky; Deep Navy for night sky, darkness, and deep shadow; Lavender for rocks, cliffs, stone, and shade; Dusty Pink for walls, clouds, and ground; Coral for warm backgrounds and fire; Marigold Orange only for the sun disc, small lamp flames, and small wooden objects, never for cast light, glows, lit paths, or highlights; Soft White for holy or radiant robes, and for all light, glows, and highlights; Vermilion for small accents only; Mustard Yellow for grain fields, baskets, pottery, rope, and clothing.
+
+    Start every image prompt with 'Create a handcrafted layered paper relief artwork of...' Name a palette color for every major element of the setting, following the roles above (for example, 'Lavender cliffs under a Cerulean Blue sky with a large Marigold Orange sun disc'). End every image prompt with this exact style block, copied word for word: 'Style: handcrafted layered paper relief, sculpted cut-paper art. Every surface embossed with fine carved grooves: swirling concentric ridges in clouds and smoke, long parallel striations on hills, ground, water, and robes, tiny clustered scale textures on foliage and stone. Solid matte color on each paper layer, no gradients, no black outlines; depth comes only from soft shadows between stacked layers. Every person has a simple face: dot eyes, short brows, tiny nose, small calm mouth; no blank faces. Colors limited to cerulean blue, lavender, dusty pink, coral, marigold orange, mustard yellow, vermilion, soft white, and deep navy. No brown (except Jesus's hair and beard), beige, tan, gray, or green. Bold simple shapes. Vertical 9:16, full-bleed artwork filling the whole canvas with no border, frame, or margin. No text, no color swatches, no palette chart.'
+
+    Illustrate the exact spoken beat through action, setting, gestures, light, paths, scrolls, storms, speakers, listeners, worship, or symbolic objects. Do not invent subplots, events, or characters.
+
+    Keep every scene in the historical and literary world of the cited book. Psalms should show ancient Israelite worship. Wisdom books should show city gates, elders, households, workshops, or contrasting paths. Torah should show the ancient Near East, Egypt, wilderness, Sinai, or the tabernacle. Historical books should show palaces, city walls, prophets, battles, or exile. Prophets should show their named cities, ruins, restoration, or visions. Gospels should show first-century Galilee or Jerusalem. Acts and Epistles should show Roman roads, cities, prisons, house churches, or letters. Revelation should appear visionary and cosmic. Infer the proper setting for other books.
+
+    The first image must establish the book's world and must not be a title card. Maintain continuity unless the source changes the setting.
+
+    For every person shown, add a short outfit note of no more than 10 words: garment style plus one or two exact palette names (for example, 'Marigold Orange robe, Lavender sash'). Jesus always appears exactly the same: a long plain Soft White robe with a Dusty Pink mantle draped diagonally over one shoulder and across his chest, brown hair, and a brown beard. Every image prompt that shows Jesus must describe him with exactly this wording: 'Jesus with brown hair and a brown beard, wearing a long plain Soft White robe with a Dusty Pink mantle draped diagonally over one shoulder and across his chest'. Never change his clothing or colors, even if the passage mentions other garments. Never put Marigold Orange on Jesus: no Marigold Orange clothing, sash, light, or glow on or around him; any light on him is a Soft White glow. In parables, the master, lord, king, bridegroom, landowner, shepherd, or father figure is drawn exactly as Jesus, with the same exact wording, and is called 'the master (shown as Jesus)' or the matching role. No one else wears a Soft White robe or a Dusty Pink mantle over the shoulder. Give each other named character one outfit when they first appear, and repeat that exact wording in every later scene that shows them. Give groups a mix of Coral, Marigold Orange, Mustard Yellow, Lavender, Cerulean Blue, and Dusty Pink tunics. Every person, Jesus included, has a very simple face: two small dark dot eyes, short brow lines, a tiny nose, and a small calm mouth; never a blank or featureless face. Apart from Jesus's brown hair and brown beard and this simple face, do not describe anyone's face, age, hair, or body. Do not depict God as a human figure; parable figures drawn as Jesus are the only exception. Show divine presence through light, fire, cloud, wind, the temple, or creation.
+
+    Include no readable text, captions, verse numbers, modern objects, or modern settings. Image safety filters react to sensitive words even when negated. When a passage mentions crushing, trampling, wounds, death, or violence, show it symbolically or as a calm moment, and never write words such as blood, wound, injury, violence, trampling, crushing, or fallen in an image prompt, not even as "no blood" or "unharmed". Show crowds as people standing with space between them, never pressed together.
+
+    Each image prompt must be no longer than 1500 characters, including the style block.
+  visual_style: 'Create a handcrafted layered paper relief artwork of... Style: handcrafted layered paper relief, sculpted cut-paper art. Every surface embossed with fine carved grooves: swirling concentric ridges in clouds and smoke, long parallel striations on hills, ground, water, and robes, tiny clustered scale textures on foliage and stone. Solid matte color on each paper layer, no gradients, no black outlines; depth comes only from soft shadows between stacked layers. Every person has a simple face: dot eyes, short brows, tiny nose, small calm mouth; no blank faces. Colors limited to cerulean blue, lavender, dusty pink, coral, marigold orange, mustard yellow, vermilion, soft white, and deep navy. No brown (except Jesus''s hair and beard), beige, tan, gray, or green. Bold simple shapes.'
+  voice_id: C9fbwSpEaejywLWx722Z
+  image_width: 576
+  image_height: 1024
+  output_width: 1080
+  output_height: 1920
+  scene_text_min_chars: 20
+  scene_text_max_chars: 280
+  extend_cast: true
+  cast:
+  - name: Jesus
+    physical_description: Jesus with brown hair and a brown beard, wearing a long plain Soft White robe with a Dusty Pink mantle draped diagonally over one shoulder and across his chest; a very simple face with two small dark dot eyes, short brow lines, a tiny nose, and a small calm mouth
+  render_settings:
+    fill_output: true
+    caption_center_y: 1325
+    caption_margin_right: 140
+  brand_assets: {}
+  outro_video: Gospel
+- name: Tiny Rest Paper-Cut Nursery
+  story_prompt_text: |2
+
+
+    ---
+    The text above is a storyboard for a short vertical Tiny Rest video (a baby sleep app).
+
+    Turn it into a production script. Output plain text only, no headings, no markdown, no commentary.
+
+    Titles and headings (the video title, "Scene 1", "Row 2" and similar) are not voiceover: leave them out.
+
+    For every storyboard row or paragraph, in order, write exactly two lines:
+    1) The voiceover line, copied word for word from the storyboard (keep its punctuation and ellipses), except
+       for calls to action: the Tiny Rest outro already asks viewers to download the app and to like and follow,
+       so leave out every sentence that asks viewers to download, install, try or get the app, mentions the
+       App Store, or asks them to like, follow, subscribe or share. Keep the rest of that line; if nothing is
+       left, skip the row.
+    2) A scene direction in square brackets that starts with "[SCENE:" and describes what happens on screen and
+       how the camera moves, following the row's scene prompt when it has one.
+    Leave one blank line between rows.
+
+    Rules for scene directions:
+    - Refer to characters only by these names: Mom, Baby, Dad, Unicorn, Dragon. Include only the ones in that row.
+    - If a row is a real screen recording, write a paper-cut stand-in instead: Mom's hand holding the glowing phone
+      with the screen facing away from the camera, soft light spilling onto her face.
+    - Every video ends with a separate Tiny Rest outro (logo and calls to action), so never write an end card,
+      logo or call-to-action scene. The last row, even when it names Tiny Rest, gets a calm closing scene of
+      the story's characters resting peacefully at night.
+    - Keep the storyboard's staging: if Mom is holding a baby, she stays holding the baby.
+    - Only when a baby is set down to sleep, it lies on its back in a bare crib or bassinet with only a fitted sheet,
+      with nothing else inside the crib.
+    - Never ask for text, letters, logos or a readable phone screen.
+
+    Apart from the calls to action above, do not add, remove, merge or reorder voiceover lines. Do not write anything else.
+  scenes_json_prompts: |
+    I have a short production script for a vertical Tiny Rest video. Each spoken voiceover line is followed by a
+    scene direction in square brackets that starts with [SCENE:. I need AI image and video generation prompts as JSON.
+
+    Return ONLY valid JSON (no markdown fences, no commentary). The root object has a single key "pairs", an array
+    with one object per voiceover line, in script order. Each object has:
+    - "original": the voiceover line exactly as written. Never include the bracketed scene direction here.
+      When lines are combined to reach the length rules below, join them in order with a space and use the first
+      line's scene direction.
+    - "aiImagePrompts": an array of exactly one string, built from the scene direction that follows that line.
+
+    Each prompt string must:
+    1) Start with: "Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, warm golden lamp glow, cozy calm nursery mood, vertical 9:16, gentle slow parallax camera movement:"
+    2) Describe the action, setting, camera movement and mood from the scene direction. Refer to characters by name
+       (Mom, Baby, Dad, Unicorn, Dragon); their looks are added separately.
+    3) Keep the staging of the scene direction (a baby held in arms stays in arms). Only a baby lying down to sleep
+       is described as lying flat on its back, face up toward the ceiling, fully inside a bare crib or bassinet
+       with only a fitted sheet.
+    4) Show any phone with its screen turned away from the camera, as a soft glow.
+    5) End with: "Smooth slow motion, soft shadows, no text, no letters, no logos." (The logo and calls to action
+       come from a separate outro, so no scene shows them.)
+    6) Stay under 1500 characters.
+
+    The script is:
+  visual_style: Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel palette of lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, swirled paper clouds, warm golden lamp glow, cozy calm nursery mood, vertical 9:16 composition
+  voice_id: jqcCZkN6Knx8BJ5TBdYR
+  image_width: 576
+  image_height: 1024
+  output_width: 1080
+  output_height: 1920
+  scene_text_min_chars: 70
+  scene_text_max_chars: 120
+  extend_cast: false
+  cast:
+  - name: Mom
+    physical_description: a young paper-craft mom with long dark wavy hair in a messy bun, oversized lavender sweater, soft gray joggers, warm gentle smile, slightly tired eyes
+  - name: Baby
+    physical_description: a chubby paper-craft baby with a little tuft of brown hair and rosy cheeks, wearing a pale yellow footed sleeper or a pale yellow sleep sack
+  - name: Unicorn
+    physical_description: a tiny white paper unicorn with a lavender and pink swirled mane, a small golden horn and sleepy closed eyes, floating softly and leaving a trail of tiny paper stars
+  - name: Dad
+    physical_description: a paper-craft dad with short dark hair and a short beard, wearing a navy t-shirt
+  - name: Dragon
+    physical_description: a tiny round cute paper dragon, soft purple with a pink belly, small wings, big curious eyes, puffing little swirled paper clouds
+  render_settings: {}
+  brand_assets:
+    keywords:
+    - Tiny Rest
+    references:
+    - id: 037b9b78-d2ec-4c8e-b1b6-98ed39a78fb0
+      file: icon.png
+      label: unicorn
+      digest: 7af03ebcc5efd0ae602ceb8e263d2dc377b54330959a57f611edffc6492098f6
+    - id: 3fd8c93f-a99b-4a82-aace-b3847a184817
+      file: bg.jpg
+      label: sky
+      digest: b04ab2cd12accb0f671f807f1be2ea83d1e718759f5d8ace2cef3fbade870c40
+  outro_video: Tiny Rest (App Store badge)
+- name: Tiny Rest Dragon & Unicorn Babies
+  story_prompt_text: |2
+
+
+    ---
+    The text above is a storyboard for a short vertical Tiny Rest video (a baby sleep app).
+    About this series: "dragon baby" and "unicorn baby" are nicknames for real human babies, given by how they sleep.
+    A unicorn baby falls asleep easily, anywhere. A dragon baby is a light, sensitive sleeper who notices every
+    light, sound and change and wakes easily; dragons are not bad sleepers, they are sensitive. They are ordinary
+    human babies, not creatures: on screen each one just has a few small, cute features (Dragon Baby: tiny wings,
+    little nub horns, pointed ears; Unicorn Baby: a tiny golden horn, a pastel mane-like tuft, pony ears).
+    When a line talks about dragon babies or "your dragon", show Dragon Baby; for unicorn babies, show Unicorn Baby;
+    when it talks about babies in general, show both. Never show a real dragon or unicorn animal.
+    Dragon Toddler and Unicorn Toddler are the same two children about two years old, with the same small features.
+    Show them only when a line talks about toddlers, older babies or a child growing up; otherwise show the babies.
+    A toddler sleeps in a toddler bed or crib, never in a bassinet. Mom and Dad are both parents in this family.
+
+    Turn it into a production script. Output plain text only, no headings, no markdown, no commentary.
+
+    Titles and headings (the video title, "Scene 1", "Row 2" and similar) are not voiceover: leave them out.
+
+    For every storyboard row or paragraph, in order, write exactly two lines:
+    1) The voiceover line, copied word for word from the storyboard (keep its punctuation and ellipses), except
+       for calls to action: the Tiny Rest outro already asks viewers to download the app and to like and follow,
+       so leave out every sentence that asks viewers to download, install, try or get the app, mentions the
+       App Store, or asks them to like, follow, subscribe or share. Keep the rest of that line; if nothing is
+       left, skip the row.
+    2) A scene direction in square brackets that starts with "[SCENE:" and describes what happens on screen and
+       how the camera moves, following the row's scene prompt when it has one.
+    Leave one blank line between rows.
+
+    Rules for scene directions:
+    - Refer to characters only by these names: Dragon Baby, Unicorn Baby, Mom, Dad, Dragon Toddler, Unicorn Toddler. Include only the ones in that row.
+    - If a row is a real screen recording, write a paper-cut stand-in instead: Mom's hand holding the glowing phone
+      with the screen facing away from the camera, soft light spilling onto her face.
+    - Every video ends with a separate Tiny Rest outro (logo and calls to action), so never write an end card,
+      logo or call-to-action scene. The last row, even when it names Tiny Rest, gets a calm closing scene of
+      the story's characters resting peacefully at night.
+    - Keep the storyboard's staging: if Mom is holding a baby, she stays holding the baby.
+    - Only when a baby is set down to sleep, it lies on its back in a bare crib or bassinet with only a fitted sheet,
+      with nothing else inside the crib.
+    - Never ask for text, letters, logos or a readable phone screen.
+
+    Apart from the calls to action above, do not add, remove, merge or reorder voiceover lines. Do not write anything else.
+  scenes_json_prompts: |
+    I have a short production script for a vertical Tiny Rest video. Each spoken voiceover line is followed by a
+    scene direction in square brackets that starts with [SCENE:. I need AI image and video generation prompts as JSON.
+    About this series: "dragon baby" and "unicorn baby" are nicknames for real human babies, given by how they sleep.
+    A unicorn baby falls asleep easily, anywhere. A dragon baby is a light, sensitive sleeper who notices every
+    light, sound and change and wakes easily; dragons are not bad sleepers, they are sensitive. They are ordinary
+    human babies, not creatures: on screen each one just has a few small, cute features (Dragon Baby: tiny wings,
+    little nub horns, pointed ears; Unicorn Baby: a tiny golden horn, a pastel mane-like tuft, pony ears).
+    When a line talks about dragon babies or "your dragon", show Dragon Baby; for unicorn babies, show Unicorn Baby;
+    when it talks about babies in general, show both. Never show a real dragon or unicorn animal.
+    Dragon Toddler and Unicorn Toddler are the same two children about two years old, with the same small features.
+    Show them only when a line talks about toddlers, older babies or a child growing up; otherwise show the babies.
+    A toddler sleeps in a toddler bed or crib, never in a bassinet. Mom and Dad are both parents in this family.
+
+    Return ONLY valid JSON (no markdown fences, no commentary). The root object has a single key "pairs", an array
+    with one object per voiceover line, in script order. Each object has:
+    - "original": the voiceover line exactly as written. Never include the bracketed scene direction here.
+      When lines are combined to reach the length rules below, join them in order with a space and use the first
+      line's scene direction.
+    - "aiImagePrompts": an array of exactly one string, built from the scene direction that follows that line.
+
+    Each prompt string must:
+    1) Start with: "Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, warm golden lamp glow, cozy calm nursery mood, vertical 9:16, gentle slow parallax camera movement:"
+    2) Describe the action, setting, camera movement and mood from the scene direction. Refer to characters by name
+       (Dragon Baby, Unicorn Baby, Mom, Dad, Dragon Toddler, Unicorn Toddler); their looks are added separately.
+    3) Keep the staging of the scene direction (a baby held in arms stays in arms). Only a baby lying down to sleep
+       is described as lying flat on its back, face up toward the ceiling, fully inside a bare crib or bassinet
+       with only a fitted sheet.
+    4) Show any phone with its screen turned away from the camera, as a soft glow.
+    5) End with: "Smooth slow motion, soft shadows, no text, no letters, no logos." (The logo and calls to action
+       come from a separate outro, so no scene shows them.)
+    6) Stay under 1500 characters.
+
+    The script is:
+  visual_style: Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel palette of lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, swirled paper clouds, warm golden lamp glow, cozy calm nursery mood, vertical 9:16 composition
+  voice_id: jqcCZkN6Knx8BJ5TBdYR
+  image_width: 576
+  image_height: 1024
+  output_width: 1080
+  output_height: 1920
+  scene_text_min_chars: 70
+  scene_text_max_chars: 120
+  extend_cast: false
+  cast:
+  - name: Dragon Baby
+    physical_description: a chubby paper-craft human baby with rosy cheeks, big curious eyes and a tuft of dark brown hair, with two tiny soft purple dragon wings on its back, two little rounded nub horns on its head and small pointed dragon ears, wearing a soft lilac footed sleeper; sweet, round and baby-like, never scary
+  - name: Unicorn Baby
+    physical_description: a chubby paper-craft human baby with rosy cheeks and sleepy eyes, with a soft swirl of pastel pink and lavender hair like a tiny mane, one small golden unicorn horn on the forehead and little soft pony ears, wearing a pale yellow footed sleeper; sweet, round and baby-like
+  - name: Mom
+    physical_description: a young paper-craft mom with long dark wavy hair in a messy bun, oversized lavender sweater, soft gray joggers, warm gentle smile, slightly tired eyes
+  - name: Dad
+    physical_description: a paper-craft dad with short dark hair and a short beard, wearing a navy t-shirt
+  - name: Dragon Toddler
+    physical_description: 'the same child as Dragon Baby at about two years old: a small paper-craft human toddler standing or walking on chubby legs, rosy cheeks, big curious eyes, slightly longer tousled dark brown hair, the same two tiny soft purple dragon wings, little rounded nub horns and small pointed dragon ears, wearing a soft lilac two-piece pajama set; sweet and playful, never scary'
+  - name: Unicorn Toddler
+    physical_description: 'the same child as Unicorn Baby at about two years old: a small paper-craft human toddler standing or walking on chubby legs, rosy cheeks and sleepy eyes, a longer soft swirl of pastel pink and lavender hair like a little mane, the same small golden unicorn horn and soft pony ears, wearing a pale yellow two-piece pajama set; sweet and calm'
+  render_settings: {}
+  brand_assets:
+    keywords:
+    - Tiny Rest
+    references:
+    - id: 037b9b78-d2ec-4c8e-b1b6-98ed39a78fb0
+      file: icon.png
+      label: unicorn
+      digest: 7af03ebcc5efd0ae602ceb8e263d2dc377b54330959a57f611edffc6492098f6
+    - id: 3fd8c93f-a99b-4a82-aace-b3847a184817
+      file: bg.jpg
+      label: sky
+      digest: b04ab2cd12accb0f671f807f1be2ea83d1e718759f5d8ace2cef3fbade870c40
+  outro_video: Tiny Rest (App Store badge)
+- name: Tiny Rest Dragon & Unicorn Reels
+  story_prompt_text: |2
+
+
+    ---
+    The text above is a storyboard for a short vertical Tiny Rest video (a baby sleep app).
+    About this series: "dragon baby" and "unicorn baby" are nicknames for real human babies, given by how they sleep.
+    A unicorn baby falls asleep easily, anywhere. A dragon baby is a light, sensitive sleeper who notices every
+    light, sound and change and wakes easily; dragons are not bad sleepers, they are sensitive. They are ordinary
+    human babies, not creatures: on screen each one just has a few small, cute features (Dragon Baby: tiny wings,
+    little nub horns, pointed ears; Unicorn Baby: a tiny golden horn, a pastel mane-like tuft, pony ears).
+    When a line talks about dragon babies or "your dragon", show Dragon Baby; for unicorn babies, show Unicorn Baby;
+    when it talks about babies in general, show both. Never show a real dragon or unicorn animal.
+    Dragon Toddler and Unicorn Toddler are the same two children about two years old, with the same small features.
+    Show them only when a line talks about toddlers, older babies or a child growing up; otherwise show the babies.
+    A toddler sleeps in a toddler bed or crib, never in a bassinet. Mom and Dad are both parents in this family.
+
+    Turn it into a production script. Output plain text only, no headings, no markdown, no commentary.
+    Length: the spoken voiceover of the whole video must total 100-120 words (about 40-48
+    seconds with the outro). Count every voiceover line. If the storyboard is longer, shorten lines by cutting
+    filler and repeated ideas, keeping each row's meaning, the hook and the last line; drop a row only if
+    trimming is not enough. If it is shorter, keep it as written. This length rule overrides "word for word" and the
+    rule below against removing voiceover lines.
+    Hook and reveal (this video must keep viewers watching to the end):
+    - Before the first storyboard row, add one new voiceover line: the hook. Write it from the storyboard's own
+      story, at most 12 words, spoken in under 3 seconds. It opens a question the viewer needs answered: a
+      surprising claim, a relatable struggle with a twist, or a promise of a secret ("Your baby isn't a bad
+      sleeper. It's something else."). It must never give the answer away, never ask viewers to download, like
+      or follow, and never promise something the video does not deliver. If the storyboard already opens with a
+      strong hook, sharpen that first line instead of adding another, so the video does not start twice.
+    - Hold back the storyboard's key insight (the answer, the turning point or the surprise) until about two
+      thirds of the way through, and give it its own voiceover line that lands clearly as the reveal and
+      answers the hook directly. You may move that one line later and reword it lightly so it lands; keep
+      every other row in order.
+    - The hook's scene direction is a striking, intriguing opening shot (a close-up or a dramatic moment of
+      the story). The reveal's scene direction shows a visible turn: the light changes, the camera pulls back
+      or the characters react.
+    - The hook and reveal count toward the word total. For these two lines only, this rule overrides "word for
+      word" and the rule below against adding or reordering voiceover lines.
+
+    Titles and headings (the video title, "Scene 1", "Row 2" and similar) are not voiceover: leave them out.
+
+    For every storyboard row or paragraph, in order, write exactly two lines:
+    1) The voiceover line, copied word for word from the storyboard (keep its punctuation and ellipses), except
+       for calls to action: the Tiny Rest outro already asks viewers to download the app and to like and follow,
+       so leave out every sentence that asks viewers to download, install, try or get the app, mentions the
+       App Store, or asks them to like, follow, subscribe or share. Keep the rest of that line; if nothing is
+       left, skip the row.
+    2) A scene direction in square brackets that starts with "[SCENE:" and describes what happens on screen and
+       how the camera moves, following the row's scene prompt when it has one.
+    Leave one blank line between rows.
+
+    Rules for scene directions:
+    - Refer to characters only by these names: Dragon Baby, Unicorn Baby, Mom, Dad, Dragon Toddler, Unicorn Toddler. Include only the ones in that row.
+    - If a row is a real screen recording, write a paper-cut stand-in instead: Mom's hand holding the glowing phone
+      with the screen facing away from the camera, soft light spilling onto her face.
+    - Every video ends with a separate Tiny Rest outro (logo and calls to action), so never write an end card,
+      logo or call-to-action scene. The last row, even when it names Tiny Rest, gets a calm closing scene of
+      the story's characters resting peacefully at night.
+    - Keep the storyboard's staging: if Mom is holding a baby, she stays holding the baby.
+    - Only when a baby is set down to sleep, it lies on its back in a bare crib or bassinet with only a fitted sheet,
+      with nothing else inside the crib.
+    - Never ask for text, letters, logos or a readable phone screen.
+
+    Apart from the calls to action above, do not add, remove, merge or reorder voiceover lines. Do not write anything else.
+  scenes_json_prompts: |
+    I have a short production script for a vertical Tiny Rest video. Each spoken voiceover line is followed by a
+    scene direction in square brackets that starts with [SCENE:. I need AI image and video generation prompts as JSON.
+    About this series: "dragon baby" and "unicorn baby" are nicknames for real human babies, given by how they sleep.
+    A unicorn baby falls asleep easily, anywhere. A dragon baby is a light, sensitive sleeper who notices every
+    light, sound and change and wakes easily; dragons are not bad sleepers, they are sensitive. They are ordinary
+    human babies, not creatures: on screen each one just has a few small, cute features (Dragon Baby: tiny wings,
+    little nub horns, pointed ears; Unicorn Baby: a tiny golden horn, a pastel mane-like tuft, pony ears).
+    When a line talks about dragon babies or "your dragon", show Dragon Baby; for unicorn babies, show Unicorn Baby;
+    when it talks about babies in general, show both. Never show a real dragon or unicorn animal.
+    Dragon Toddler and Unicorn Toddler are the same two children about two years old, with the same small features.
+    Show them only when a line talks about toddlers, older babies or a child growing up; otherwise show the babies.
+    A toddler sleeps in a toddler bed or crib, never in a bassinet. Mom and Dad are both parents in this family.
+
+    Return ONLY valid JSON (no markdown fences, no commentary). The root object has a single key "pairs", an array
+    with one object per voiceover line, in script order. Each object has:
+    - "original": the voiceover line exactly as written. Never include the bracketed scene direction here.
+      When lines are combined to reach the length rules below, join them in order with a space and use the first
+      line's scene direction.
+    - "aiImagePrompts": an array of exactly one string, built from the scene direction that follows that line.
+
+    Each prompt string must:
+    1) Start with: "Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, warm golden lamp glow, cozy calm nursery mood, vertical 9:16, gentle slow parallax camera movement:"
+    2) Describe the action, setting, camera movement and mood from the scene direction. Refer to characters by name
+       (Dragon Baby, Unicorn Baby, Mom, Dad, Dragon Toddler, Unicorn Toddler); their looks are added separately.
+    3) Keep the staging of the scene direction (a baby held in arms stays in arms). Only a baby lying down to sleep
+       is described as lying flat on its back, face up toward the ceiling, fully inside a bare crib or bassinet
+       with only a fitted sheet.
+    4) Show any phone with its screen turned away from the camera, as a soft glow.
+    5) End with: "Smooth slow motion, soft shadows, no text, no letters, no logos." (The logo and calls to action
+       come from a separate outro, so no scene shows them.)
+    6) Stay under 1500 characters.
+
+    The script is:
+  visual_style: Handcrafted layered paper-cut diorama, 3D papercraft storybook illustration, visible paper texture with fine ridged grooves and swirl patterns, soft depth of field, pastel palette of lavender, dusty pink, lilac and soft cream against a midnight navy night sky with tiny paper stars and a paper crescent moon, swirled paper clouds, warm golden lamp glow, cozy calm nursery mood, vertical 9:16 composition
+  voice_id: jqcCZkN6Knx8BJ5TBdYR
+  image_width: 576
+  image_height: 1024
+  output_width: 1080
+  output_height: 1920
+  scene_text_min_chars: 70
+  scene_text_max_chars: 120
+  extend_cast: false
+  cast:
+  - name: Dragon Baby
+    physical_description: a chubby paper-craft human baby with rosy cheeks, big curious eyes and a tuft of dark brown hair, with two tiny soft purple dragon wings on its back, two little rounded nub horns on its head and small pointed dragon ears, wearing a soft lilac footed sleeper; sweet, round and baby-like, never scary
+  - name: Unicorn Baby
+    physical_description: a chubby paper-craft human baby with rosy cheeks and sleepy eyes, with a soft swirl of pastel pink and lavender hair like a tiny mane, one small golden unicorn horn on the forehead and little soft pony ears, wearing a pale yellow footed sleeper; sweet, round and baby-like
+  - name: Mom
+    physical_description: a young paper-craft mom with long dark wavy hair in a messy bun, oversized lavender sweater, soft gray joggers, warm gentle smile, slightly tired eyes
+  - name: Dad
+    physical_description: a paper-craft dad with short dark hair and a short beard, wearing a navy t-shirt
+  - name: Dragon Toddler
+    physical_description: 'the same child as Dragon Baby at about two years old: a small paper-craft human toddler standing or walking on chubby legs, rosy cheeks, big curious eyes, slightly longer tousled dark brown hair, the same two tiny soft purple dragon wings, little rounded nub horns and small pointed dragon ears, wearing a soft lilac two-piece pajama set; sweet and playful, never scary'
+  - name: Unicorn Toddler
+    physical_description: 'the same child as Unicorn Baby at about two years old: a small paper-craft human toddler standing or walking on chubby legs, rosy cheeks and sleepy eyes, a longer soft swirl of pastel pink and lavender hair like a little mane, the same small golden unicorn horn and soft pony ears, wearing a pale yellow two-piece pajama set; sweet and calm'
+  render_settings:
+    fill_output: true
+    caption_center_y: 1325
+    caption_margin_right: 140
+  brand_assets:
+    keywords:
+    - Tiny Rest
+    references:
+    - id: 037b9b78-d2ec-4c8e-b1b6-98ed39a78fb0
+      file: icon.png
+      label: unicorn
+      digest: 7af03ebcc5efd0ae602ceb8e263d2dc377b54330959a57f611edffc6492098f6
+    - id: 3fd8c93f-a99b-4a82-aace-b3847a184817
+      file: bg.jpg
+      label: sky
+      digest: b04ab2cd12accb0f671f807f1be2ea83d1e718759f5d8ace2cef3fbade870c40
+  outro_video: Tiny Rest (App Store badge)

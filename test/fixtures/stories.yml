@@ -4,8 +4,10 @@ one:
   text: MyText
   story_type: one
   source: one
+  queue_state: done
 
 two:
   text: MyText
   story_type: one
   source: two
+  queue_state: done

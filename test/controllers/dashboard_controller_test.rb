@@ -140,13 +140,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-scenes-toggle]"
   end
 
-  test "story show marks scenes whose audio stayed over 5 seconds" do
+  test "story show marks scenes whose narration runs over 15 seconds" do
     scenes(:one).update_columns(audio_too_long: true)
 
     get story_url(stories(:one))
     assert_response :success
-    assert_select ".pill-warn", text: "Audio over 5s"
-    assert_select ".is-error", text: /longer than 5 seconds after three shorter rewrites/
+    assert_select ".pill-warn", text: "Long narration"
+    assert_select "p.muted", text: /Narration is over 15 seconds/
   end
 
   test "story show collapses merged scenes" do

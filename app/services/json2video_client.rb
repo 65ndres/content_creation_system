@@ -1,7 +1,6 @@
-require 'httparty'
+require "httparty"
 
 class Json2videoClient
-
   MOVIES_ENDPOINT = "https://api.json2video.com/v2/movies"
 
   def self.create_scene_video(scene)
@@ -28,7 +27,7 @@ class Json2videoClient
     payload           = {}
     story             = scene.story
     story_type        = story.story_type
-  
+
     payload["id"]     = "story-#{scene.story_id}-scene-#{scene.id}-audio-#{scene.id}"
     payload["fps"]    = 25
     payload["cache"]  = payload["draft"] = false
@@ -48,14 +47,14 @@ class Json2videoClient
     return if story.video_url.present?
     payload             = {}
     story_type          = story.story_type
-  
+
     payload["id"]       = "story-#{story.id}-all-scenes"
     payload["fps"]      = 25
     payload["cache"]    = payload["draft"] = false
     payload["width"]    = story_type.output_width
     payload["height"]   = story_type.output_height
     payload["scenes"]   = create_story_video_payload(story)
-    payload["elements"] = [story_video_captions_payload]
+    payload["elements"] = [ story_video_captions_payload ]
     project             = create_video(payload)
     story.video_gen_id  = project
 
@@ -68,7 +67,6 @@ class Json2videoClient
     result = []
     story_type = story.story_type
     story.scenes.each do |scene|
-
       element_obj                  = {}
       element_obj["elements"]      = []
       element_obj_value            = {}
@@ -121,7 +119,7 @@ class Json2videoClient
     audio_element_obj["type"]     = "audio"
     audio_element_obj["duration"] = -1
     result_obj["elements"]        << audio_element_obj
-    [result_obj]
+    [ result_obj ]
   end
 
   def self.story_video_captions_payload
@@ -186,21 +184,17 @@ class Json2videoClient
   end
 
   def self.video_generation_status(id)
-    response = `curl --location --request GET 'https://api.json2video.com/v2/movies?id=#{id}' \
-    --header 'X-api-key: #{ENV["JSON2VIDEO_KEY"]}' \
-    --header 'Content-Type: application/json'`
-    data     = JSON.parse(response)
-    data
+    response = HTTParty.get(MOVIES_ENDPOINT, query: { id: id }, headers: api_headers)
+    JSON.parse(response.body)
   end
 
   def self.create_video(payload)
-    response = `curl --location --request POST 'https://api.json2video.com/v2/movies' \
-    --header "x-api-key: #{ENV['JSON2VIDEO_KEY']}" \
-    --header "Content-Type: application/json" \
-    --data-raw '#{payload.to_json}'`
-    data     = JSON.parse(response)
-    data["project"]
+    response = HTTParty.post(MOVIES_ENDPOINT, body: payload.to_json, headers: api_headers)
+    JSON.parse(response.body)["project"]
   end
 
-
+  def self.api_headers
+    { "x-api-key" => ENV["JSON2VIDEO_KEY"].to_s, "Content-Type" => "application/json" }
+  end
+  private_class_method :api_headers
 end
